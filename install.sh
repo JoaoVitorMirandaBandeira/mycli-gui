@@ -26,7 +26,9 @@ mkdir -p "$bin" "$share" "$HOME/.local/share/icons/hicolor/scalable/apps" "$HOME
 install -m 755 "$here/bin/my" "$bin/my"
 install -m 644 "$here/my-gui/server.py" "$here/my-gui/index.html" "$here/my-gui/my-gui.svg" "$share/"
 install -m 644 "$here/my-gui/my-gui.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/my-gui.svg"
-cat > "$HOME/.local/share/applications/my-gui.desktop" <<DESK
+# o nome do arquivo e o StartupWMClass são a classe que o Chrome dá às janelas --app=http://127.0.0.1:...
+rm -f "$HOME/.local/share/applications/my-gui.desktop"
+cat > "$HOME/.local/share/applications/chrome-127.0.0.1__-Default.desktop" <<DESK
 [Desktop Entry]
 Type=Application
 Name=my — MySQL
@@ -35,7 +37,7 @@ Exec=$bin/my -g
 Icon=my-gui
 Terminal=false
 Categories=Development;Database;
-StartupWMClass=my-gui
+StartupWMClass=chrome-127.0.0.1__-Default
 DESK
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
@@ -48,5 +50,5 @@ esac
 
 echo
 echo "Pronto! Próximos passos:"
-echo "  1) my -a     (adiciona sua primeira conexão)"
-echo "  2) my        (abre a janela)"
+echo "  1) my        (abre a janela)"
+echo "  2) clique em ＋ para adicionar sua primeira conexão"

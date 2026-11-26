@@ -105,6 +105,14 @@ dialog input{width:calc(100% - 24px);margin:12px}
 .hi:hover{background:var(--bg3)}
 .hi small{color:var(--mut);display:block}
 .hi code{white-space:pre-wrap;font:12.5px ui-monospace,monospace;display:block;max-height:5.6em;overflow:hidden}
+#cf{padding:18px 22px;width:min(460px,92vw);display:flex;flex-direction:column;gap:10px}
+#cf h3{margin:0 0 4px}
+#cf label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mut);flex:1}
+#cf input{width:100%;margin:0;color:var(--fg)}
+#cf .row{display:flex;gap:10px}#cf .sm{flex:0 0 100px}
+#cf .cb{display:flex;gap:8px;margin-top:6px}
+#cm{min-height:1.3em;font-size:13px;white-space:pre-wrap}#cm.ok{color:var(--ok)}#cm.bad{color:var(--err)}
+button.danger{color:var(--err)}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #toast.on{opacity:.92}
 </style>
@@ -114,6 +122,7 @@ dialog input{width:calc(100% - 24px);margin:12px}
   <button id="tg" title="Mostrar/ocultar tabelas">☰</button>
   <b class="logo">my</b>
   <select id="alias" title="Conexão"></select>
+  <button id="ca" title="Nova conexão">＋</button><button id="ce" title="Editar esta conexão">✎</button>
   <input id="db" list="dbs" placeholder="banco (digite para filtrar)" autocomplete="off" title="Banco de dados">
   <datalist id="dbs"></datalist>
   <span id="st"><i></i><span>iniciando…</span></span>
@@ -137,6 +146,15 @@ dialog input{width:calc(100% - 24px);margin:12px}
   <aside id="rec"></aside>
 </div>
 <dialog id="hd"><input id="hq" placeholder="buscar no histórico…" autocomplete="off"><div id="hl"></div></dialog>
+<dialog id="cd"><form id="cf" autocomplete="off">
+  <h3 id="ct">Nova conexão</h3>
+  <label>Nome da conexão<input id="cn" placeholder="ex.: producao" required></label>
+  <div class="row"><label>Host / IP<input id="ch" placeholder="10.0.0.5" required></label><label class="sm">Porta<input id="cp" type="number" min="1" max="65535" value="3306"></label></div>
+  <label>Usuário<input id="cu" autocomplete="off"></label>
+  <label>Senha<input id="cw" type="password" autocomplete="new-password"></label>
+  <div id="cm"></div>
+  <div class="cb"><button type="button" id="cx" class="danger">Excluir</button><span class="sp"></span><button type="button" id="ctest">Testar</button><button type="button" id="cc">Cancelar</button><button type="submit" class="pri">Salvar</button></div>
+</form></dialog>
 <div id="ac"></div>
 <div id="toast"></div>
 <script>
@@ -543,6 +561,55 @@ function acAccept(i){
 }
 $('#ac').addEventListener('mousedown',e=>{e.preventDefault();const it=e.target.closest('.ai');if(it)acAccept(+it.dataset.i)});
 
+/* ---------- gerenciar conexões ---------- */
+S.aliases=[];
+async function loadAliases(want){
+  const r=await api('/api/aliases');S.aliases=r.aliases||[];
+  $('#alias').innerHTML=S.aliases.map(a=>`<option value="${esc(a.name)}">${esc(a.name)} — ${esc(a.host)}:${a.port}</option>`).join('');
+  $('#ce').disabled=!S.aliases.length;
+  if(!S.aliases.length){setStatus('Nenhuma conexão — clique em ＋','err');return null}
+  const names=S.aliases.map(a=>a.name);
+  const a=names.includes(want)?want:names[0];$('#alias').value=a;return a;
+}
+let CD={edit:false};
+function openConn(edit){
+  const a=edit?S.aliases.find(x=>x.name===S.alias):null;
+  if(edit&&!a)return;
+  CD.edit=!!a;
+  $('#ct').textContent=a?`Editar conexão “${a.name}”`:'Nova conexão';
+  $('#cn').value=a?a.name:'';$('#cn').readOnly=!!a;
+  $('#ch').value=a?a.host:'';$('#cp').value=a?a.port:3306;$('#cu').value=a?a.user:'';$('#cw').value='';
+  $('#cw').placeholder=a?'(em branco = manter a atual)':'(em branco = perguntar ao conectar)';
+  $('#cx').style.display=a?'':'none';
+  cmsg('');$('#cd').showModal();(a?$('#ch'):$('#cn')).focus();
+}
+function cmsg(t,k){const e=$('#cm');e.textContent=t;e.className=k||''}
+const cbody=()=>({name:$('#cn').value.trim(),host:$('#ch').value.trim(),port:+$('#cp').value||3306,user:$('#cu').value,password:(CD.edit&&!$('#cw').value)?null:$('#cw').value});
+$('#ca').addEventListener('click',()=>openConn(false));
+$('#ce').addEventListener('click',()=>openConn(true));
+$('#cc').addEventListener('click',()=>$('#cd').close());
+$('#ctest').addEventListener('click',async()=>{
+  cmsg('Testando…');const r=await api('/api/alias/test',cbody());
+  r.error?cmsg(r.error,'bad'):cmsg(r.message,'ok');
+});
+$('#cf').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const b=cbody(),r=await api('/api/alias/save',b);
+  if(r.error)return cmsg(r.error,'bad');
+  $('#cd').close();
+  const a=await loadAliases(b.name);toast('Conexão salva');
+  if(a){ls.set('mygui.alias',a);await setAlias(a,'')}
+});
+$('#cx').addEventListener('click',async()=>{
+  const n=$('#cn').value;
+  if(!confirm(`Excluir a conexão “${n}”? (remove do ~/.myclirc)`))return;
+  const r=await api('/api/alias/delete',{name:n});
+  if(r.error)return cmsg(r.error,'bad');
+  $('#cd').close();
+  const a=await loadAliases('');toast('Conexão excluída');
+  if(a)await setAlias(a,'');else{S.alias='';S.tables=[];drawTables();setDbValue('')}
+});
+
 /* ---------- início ---------- */
 (async function init(){
   setInterval(()=>api('/api/ping'),5000);api('/api/ping');
@@ -551,12 +618,9 @@ $('#ac').addEventListener('mousedown',e=>{e.preventDefault();const it=e.target.c
   if(st&&st.tabs&&st.tabs.length){st.tabs.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql||'',results:[],error:null,running:false}));S.act=Math.min(st.act||0,S.tabs.length-1)}
   else S.tabs.push({id:nextId++,title:'consulta',sql:'',results:[],error:null,running:false});
   drawTabs();loadEditor();
-  const r=await api('/api/aliases');
-  if(!r.aliases||!r.aliases.length){setStatus('Nenhum alias em ~/.myclirc','err');return}
-  $('#alias').innerHTML=r.aliases.map(a=>`<option value="${esc(a.name)}">${esc(a.name)} — ${esc(a.host)}:${a.port}</option>`).join('');
   const want=new URLSearchParams(location.search).get('a');
-  const names=r.aliases.map(a=>a.name);
-  const a=names.includes(want)?want:(names.includes(st&&st.alias)?st.alias:names[0]);
+  const a=await loadAliases(want||(st&&st.alias));
+  if(!a){openConn(false);return}
   await setAlias(a,st&&st.alias===a?st.db:'');
   $('#sql').focus();
 })();

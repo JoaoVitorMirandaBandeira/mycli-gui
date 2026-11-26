@@ -17,21 +17,17 @@ O `install.sh` instala o que faltar (`mycli`, `python3-pymysql`; pede sua senha 
 
 ## Usar
 
-**1. Adicione uma conexão** (só na primeira vez):
-
-```bash
-my -a
-```
-
-Responda nome, host, porta, usuário e senha. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
-
-**2. Abra a janela:**
+**1. Abra a janela:**
 
 ```bash
 my
 ```
 
-Escolha a conexão e o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
+**2. Adicione sua conexão** (só na primeira vez): clique em **＋** ao lado da lista de conexões, preencha nome, host, porta, usuário e senha, clique em **Testar** e depois em **Salvar**. Para mudar ou apagar uma conexão use o **✎**.
+
+Prefere o terminal? `my -a` faz a mesma pergunta por lá. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
+
+Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
 
 ## Dicas
 
@@ -42,6 +38,7 @@ Escolha a conexão e o banco no topo, clique numa tabela à esquerda ou escreva 
 | Executar só um trecho | selecione e **Ctrl+Enter** |
 | Histórico de consultas | **Alt+H** |
 | Terminal em vez de janela | `my nome_da_conexao` |
+| Nova / editar conexão | **＋** e **✎** na janela (ou `my -a`) |
 | Listar conexões | `my -l` |
 
 As conexões ficam no `~/.myclirc` (permissão 600). As senhas nunca vão para a página, e o servidor só aceita conexões da própria máquina (`127.0.0.1`).

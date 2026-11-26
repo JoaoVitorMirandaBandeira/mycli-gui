@@ -53,6 +53,58 @@ def load_aliases():
     return out
 
 
+def write_cfg(lines):
+    tmp = CFG + '.tmp'
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines) + '\n')
+    os.replace(tmp, CFG)
+
+
+def edit_alias(name, line):
+    """Grava (ou remove, se line=None) o alias dentro de [alias_dsn] do ~/.myclirc."""
+    try:
+        lines = open(CFG, encoding='utf-8').read().splitlines()
+    except OSError:
+        lines = []
+    out, inside, done = [], False, False
+    for l in lines:
+        s = l.strip()
+        if s.startswith('['):
+            if inside and not done and line is not None:
+                out.append(line); done = True
+            inside = (s == '[alias_dsn]')
+        if inside and re.match(rf'\s*{re.escape(name)}\s*=', l):
+            if line is not None and not done:
+                out.append(line); done = True
+            continue
+        out.append(l)
+    if line is not None and not done:
+        if not any(l.strip() == '[alias_dsn]' for l in lines):
+            out += ['', '[alias_dsn]']
+        out.append(line)
+    write_cfg(out)
+
+
+def alias_args(d):
+    """Valida o formulário de conexão; senha None = manter a atual."""
+    name = (d.get('name') or '').strip()
+    host = (d.get('host') or '').strip()
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+        raise ApiError('Nome inválido: use só letras, números, _ . -')
+    if not host or re.search(r'[\s/@]', host):
+        raise ApiError('Host inválido')
+    try:
+        port = int(d.get('port') or 3306)
+        assert 0 < port < 65536
+    except Exception:
+        raise ApiError('Porta inválida')
+    pw = d.get('password')
+    if pw is None:
+        pw = (load_aliases().get(name) or {}).get('password')
+    return name, host, port, d.get('user') or '', pw
+
+
 # ------------------------------------------------------------------- pool ---
 class Pool:
     def __init__(self):
@@ -229,6 +281,33 @@ def api(path, d):
             dict(name=k, host=v['host'], port=v['port'], user=v['user'],
                  db=v['db'] or '')
             for k, v in load_aliases().items()])
+    if path == '/api/alias/save':
+        name, host, port, user, pw = alias_args(d)
+        q = lambda s: urllib.parse.quote(s, safe='')
+        auth = q(user) + (':' + q(pw) if pw else '')
+        edit_alias(name, f'{name} = mysql://{auth}@{host}:{port}/')
+        pool.drop(name); pool.pw.pop(name, None)
+        return dict(name=name)
+    if path == '/api/alias/delete':
+        name = (d.get('name') or '').strip()
+        if name not in load_aliases():
+            raise ApiError('Conexão não encontrada')
+        edit_alias(name, None)
+        pool.drop(name); pool.pw.pop(name, None)
+        return {}
+    if path == '/api/alias/test':
+        name, host, port, user, pw = alias_args(d)
+        if pw is None:
+            pw = pool.pw.get(name, '')
+        t0 = time.time()
+        try:
+            c = pymysql.connect(host=host, port=port, user=user, password=pw,
+                                connect_timeout=6, read_timeout=8)
+            ver = c.get_server_info()
+            c.close()
+        except pymysql.MySQLError as e:
+            raise ApiError(emsg(e))
+        return dict(message=f'Conectou: MySQL {ver} ({int((time.time() - t0) * 1000)} ms)')
     alias = d.get('alias')
     if path == '/api/password':
         pool.pw[alias] = d.get('password', '')
@@ -353,8 +432,7 @@ def open_window(url):
               'brave-browser', 'microsoft-edge'):
         exe = shutil.which(b)
         if exe:
-            subprocess.Popen([exe, f'--app={url}', '--class=my-gui', '--window-size=1400,880',
-                              '--no-first-run'],
+            subprocess.Popen([exe, f'--app={url}', '--window-size=1400,880', '--no-first-run'],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
             return
