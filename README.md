@@ -29,6 +29,10 @@ Prefere o terminal? `my -a` faz a mesma pergunta por lá. Quer trazer as do DBea
 
 Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
 
+## O que fica salvo
+
+Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: **conexão e banco de cada conexão, abas, SQL escrito e histórico**. Fica em `~/.config/my-gui/state.json` (permissão 600, gravação atômica com `fsync` e cópia `.bak`).
+
 ## Dicas
 
 | Quero | Como |

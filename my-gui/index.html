@@ -50,12 +50,12 @@ aside{background:var(--bg2);display:flex;flex-direction:column;min-height:0}
 .tab b{font-weight:400;opacity:.5}.tab b:hover{opacity:1;color:var(--err)}
 #ed{position:relative;height:150px;min-height:56px;resize:vertical;overflow:hidden;border-bottom:1px solid var(--line);background:var(--bg);flex:none}
 #ed:focus-within{box-shadow:inset 0 0 0 2px var(--acc)}
-#hl,#sql{position:absolute;inset:0;margin:0;padding:10px 14px;border:0;border-radius:0;font:13px/1.5 ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;white-space:pre;tab-size:2;overflow:auto;letter-spacing:0}
-#hl{overflow:hidden;pointer-events:none;color:var(--fg)}
+#hlight,#sql{position:absolute;inset:0;margin:0;padding:10px 14px;border:0;border-radius:0;font:13px/1.5 ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;white-space:pre;tab-size:2;overflow:auto;letter-spacing:0;font-variant-ligatures:none;font-kerning:none}
+#hlight{overflow:hidden;pointer-events:none;color:var(--fg)}
 #sql{background:transparent;color:transparent;caret-color:var(--fg);resize:none;outline:none!important;box-shadow:none!important}
 #sql::selection{background:rgba(91,146,255,.38);color:transparent}
 #sql::placeholder{color:var(--mut)}
-.tk{color:var(--tk);font-weight:600}.ts{color:var(--ts)}.tn{color:var(--tn)}.tc{color:var(--tc);font-style:italic}.tf{color:var(--tf)}.ti{color:var(--ti)}.tb{color:var(--tb)}
+.tk{color:var(--tk)}.ts{color:var(--ts)}.tn{color:var(--tn)}.tc{color:var(--tc)}.tf{color:var(--tf)}.ti{color:var(--ti)}.tb{color:var(--tb)}
 #ac{position:fixed;display:none;z-index:60;min-width:260px;max-width:520px;max-height:288px;overflow:auto;background:var(--bg2);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px #0006;padding:3px}
 .ai{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:5px;cursor:pointer;white-space:nowrap}
 .ai.on{background:var(--acc);color:var(--accfg)}
@@ -140,7 +140,7 @@ button.danger{color:var(--err)}
   </aside>
   <section id="work">
     <div id="tabs"></div>
-    <div id="ed"><pre id="hl" aria-hidden="true"></pre><textarea id="sql" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="SELECT * FROM tabela LIMIT 100;   — Ctrl+Enter executa tudo (ou só a seleção) · Ctrl+Espaço sugere"></textarea></div>
+    <div id="ed"><pre id="hlight" aria-hidden="true"></pre><textarea id="sql" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="SELECT * FROM tabela LIMIT 100;   — Ctrl+Enter executa tudo (ou só a seleção) · Ctrl+Espaço sugere"></textarea></div>
     <div id="res"></div>
   </section>
   <aside id="rec"></aside>
@@ -162,9 +162,9 @@ const TOKEN='__TOKEN__';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const bq=n=>'`'+n.replace(/`/g,'``')+'`';
-const S={alias:'',db:'',tabs:[],act:0,tables:[]};
+const S={alias:'',db:'',lastDb:{},tabs:[],act:0,tables:[]};
 let nextId=1,saveT=null;
-const ls={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let HIST=[],stateReady=false;
 
 async function api(path,body){
   try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Token':TOKEN},body:JSON.stringify(body||{})});return await r.json()}
@@ -185,7 +185,15 @@ let tt;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on
 function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copiado'),()=>toast('Não foi possível copiar'))}
 
 /* ---------- estado ---------- */
-function save(){clearTimeout(saveT);saveT=setTimeout(()=>ls.set('mygui.state',{alias:S.alias,db:S.db,act:S.act,tabs:S.tabs.map(t=>({title:t.title,sql:t.sql}))}),300)}
+/* estado guardado no servidor (~/.config/my-gui/state.json): sobrevive a fechar a janela */
+let histDirty=false;
+const stateDoc=()=>{const d={ui:{alias:S.alias,dbs:S.lastDb,act:S.act,tabs:S.tabs.map(t=>({title:t.title,sql:t.sql,pinned:!!t.pinned}))}};if(histDirty){d.hist=HIST;histDirty=false}return d};
+function save(){if(!stateReady)return;clearTimeout(saveT);saveT=setTimeout(flush,250)}
+function flush(){
+  if(!stateReady)return;clearTimeout(saveT);
+  const body=JSON.stringify({state:stateDoc()});
+  fetch('/api/state/set',{method:'POST',keepalive:body.length<60000,headers:{'Content-Type':'application/json','X-Token':TOKEN},body}).catch(()=>{histDirty=true});
+}
 const cur=()=>S.tabs[S.act];
 function newTab(sql='',title='consulta',pinned=false){S.tabs.push({id:nextId++,title,sql,pinned,results:[],error:null,running:false});S.act=S.tabs.length-1;drawTabs();loadEditor();save();return cur()}
 function switchTab(i){S.act=i;drawTabs();loadEditor();save()}
@@ -208,7 +216,7 @@ $('#sql').addEventListener('input',e=>{
   if(AC.skip)return;
   if(AC.open||e.inputType==='insertText')acUpdate(false);
 });
-$('#sql').addEventListener('scroll',()=>{const h=$('#hl'),t=$('#sql');h.scrollTop=t.scrollTop;h.scrollLeft=t.scrollLeft;acClose()});
+$('#sql').addEventListener('scroll',()=>{const h=$('#hlight'),t=$('#sql');h.scrollTop=t.scrollTop;h.scrollLeft=t.scrollLeft;acClose()});
 $('#sql').addEventListener('click',acClose);
 $('#sql').addEventListener('blur',acClose);
 $('#sql').addEventListener('keyup',e=>{if(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(e.key))acClose()});
@@ -232,7 +240,7 @@ document.addEventListener('keydown',e=>{
 
 /* ---------- conexão / bancos / tabelas ---------- */
 async function setAlias(a,keepDb){
-  S.alias=a;$('#alias').value=a;S.tables=[];drawTables();
+  S.alias=a;save();$('#alias').value=a;S.tables=[];drawTables();
   setStatus('conectando…','warn');
   const r=await apiPw('/api/databases',{alias:a});
   if(S.alias!==a)return;
@@ -244,7 +252,7 @@ async function setAlias(a,keepDb){
 }
 function setDbValue(d){S.db=d;$('#db').value=d}
 async function setDb(d){
-  setDbValue(d);S.tables=[];drawTables();save();
+  setDbValue(d);S.lastDb[S.alias]=d;S.tables=[];drawTables();save();
   if(!d)return;
   const r=await apiPw('/api/tables',{alias:S.alias,db:d});
   if(S.db!==d)return;
@@ -252,7 +260,7 @@ async function setDb(d){
   S.tables=r.tables;drawTables();ensureCols(d);
 }
 $('#rf').addEventListener('click',()=>{if(!S.db)return;delete S.cache[ck(S.db)];setDb(S.db);toast('Recarregando…')});
-$('#alias').addEventListener('change',e=>{ls.set('mygui.alias',e.target.value);setAlias(e.target.value,'')});
+$('#alias').addEventListener('change',e=>setAlias(e.target.value,S.lastDb[e.target.value]));
 $('#db').addEventListener('change',e=>{const v=e.target.value.trim();if(!v)return setDb('');if(S.dbs&&S.dbs.includes(v))setDb(v);else{toast('Banco não encontrado');e.target.value=S.db}});
 $('#db').addEventListener('focus',e=>e.target.select());
 function drawTables(){
@@ -381,13 +389,12 @@ $('#rec').addEventListener('click',e=>{
 
 /* ---------- histórico ---------- */
 function pushHist(sql){
-  const h=ls.get('mygui.hist',[]);
-  if(h[0]&&h[0].sql===sql)return;
-  h.unshift({sql,alias:S.alias,db:S.db,t:Date.now()});ls.set('mygui.hist',h.slice(0,300));
+  if(HIST[0]&&HIST[0].sql===sql)return;
+  HIST.unshift({sql:sql.slice(0,12000),alias:S.alias,db:S.db,t:Date.now()});HIST=HIST.slice(0,300);histDirty=true;save();
 }
 function drawHist(){
   const q=$('#hq').value.toLowerCase();
-  const h=ls.get('mygui.hist',[]).map((x,k)=>({...x,k})).filter(x=>!q||x.sql.toLowerCase().includes(q)||(x.alias||'').includes(q)).slice(0,80);
+  const h=HIST.map((x,k)=>({...x,k})).filter(x=>!q||x.sql.toLowerCase().includes(q)||(x.alias||'').includes(q)).slice(0,80);
   $('#hl').innerHTML=h.length?h.map(x=>`<div class="hi" data-k="${x.k}"><small>${esc(x.alias||'')} · ${esc(x.db||'')} · ${new Date(x.t).toLocaleString('pt-BR')}</small><code>${esc(x.sql.slice(0,400))}</code></div>`).join(''):'<div class="msg">Nada por aqui.</div>';
 }
 function openHist(){$('#hq').value='';drawHist();$('#hd').showModal();$('#hq').focus()}
@@ -395,7 +402,7 @@ $('#hist').addEventListener('click',openHist);
 $('#hq').addEventListener('input',drawHist);
 $('#hl').addEventListener('click',e=>{
   const it=e.target.closest('.hi');if(!it)return;
-  const x=ls.get('mygui.hist',[])[+it.dataset.k];if(!x)return;
+  const x=HIST[+it.dataset.k];if(!x)return;
   cur().sql=x.sql;setSql(x.sql);$('#hd').close();$('#sql').focus();save();
 });
 $('#hd').addEventListener('click',e=>{if(e.target.id==='hd')e.target.close()});
@@ -419,8 +426,8 @@ function hlSql(s){
   }
   return out+esc(s.slice(last))+'\n ';
 }
-function hlRender(){$('#hl').innerHTML=hlSql($('#sql').value)}
-function setSql(v){const t=$('#sql');t.value=v;hlRender();t.scrollTop=0;t.scrollLeft=0;$('#hl').scrollTop=0;$('#hl').scrollLeft=0}
+function hlRender(){$('#hlight').innerHTML=hlSql($('#sql').value)}
+function setSql(v){const t=$('#sql');t.value=v;hlRender();t.scrollTop=0;t.scrollLeft=0;$('#hlight').scrollTop=0;$('#hlight').scrollLeft=0}
 
 /* ---------- editor: autocomplete ---------- */
 const AC={open:false,items:[],sel:0,start:0,end:0,prefix:'',skip:false};
@@ -528,7 +535,7 @@ function acUpdate(force){
 function caretXY(){
   const ta=$('#sql'),cs=getComputedStyle(ta),lines=ta.value.slice(0,ta.selectionStart).split('\n'),ln=lines.length-1;
   let col=0;for(const ch of lines[ln])col=ch==='\t'?(Math.floor(col/2)+1)*2:col+1;
-  if(!caretXY.cw){const s=document.createElement('span');s.style.cssText='position:absolute;visibility:hidden;white-space:pre;font:'+cs.font;s.textContent='x'.repeat(100);document.body.appendChild(s);caretXY.cw=s.getBoundingClientRect().width/100;s.remove()}
+  if(!caretXY.cw){const s=document.createElement('span');s.style.cssText='position:absolute;visibility:hidden;white-space:pre;font-variant-ligatures:none;font-kerning:none;font-family:'+cs.fontFamily+';font-size:'+cs.fontSize+';font-weight:'+cs.fontWeight;s.textContent='x'.repeat(100);document.body.appendChild(s);caretXY.cw=s.getBoundingClientRect().width/100;s.remove()}
   const lh=parseFloat(cs.lineHeight),r=ta.getBoundingClientRect();
   return{x:r.left+parseFloat(cs.paddingLeft)+col*caretXY.cw-ta.scrollLeft,y:r.top+parseFloat(cs.paddingTop)+(ln+1)*lh-ta.scrollTop,lh};
 }
@@ -598,7 +605,7 @@ $('#cf').addEventListener('submit',async e=>{
   if(r.error)return cmsg(r.error,'bad');
   $('#cd').close();
   const a=await loadAliases(b.name);toast('Conexão salva');
-  if(a){ls.set('mygui.alias',a);await setAlias(a,'')}
+  if(a)await setAlias(a,'')
 });
 $('#cx').addEventListener('click',async()=>{
   const n=$('#cn').value;
@@ -613,15 +620,20 @@ $('#cx').addEventListener('click',async()=>{
 /* ---------- início ---------- */
 (async function init(){
   setInterval(()=>api('/api/ping'),5000);api('/api/ping');
-  addEventListener('pagehide',()=>navigator.sendBeacon('/api/bye?t='+encodeURIComponent(TOKEN),''));
-  const st=ls.get('mygui.state',null);
-  if(st&&st.tabs&&st.tabs.length){st.tabs.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql||'',results:[],error:null,running:false}));S.act=Math.min(st.act||0,S.tabs.length-1)}
+  addEventListener('pagehide',()=>{flush();navigator.sendBeacon('/api/bye?t='+encodeURIComponent(TOKEN),'')});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
+  const r=await api('/api/state/get'),stt=r.state||{},st=stt.ui||{};
+  HIST=Array.isArray(stt.hist)?stt.hist:[];
+  S.lastDb=st.dbs||{};
+  const saved=(st.tabs||[]).filter(t=>t&&typeof t.sql==='string');
+  if(saved.length){saved.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql,pinned:!!t.pinned,results:[],error:null,running:false}));S.act=Math.min(Math.max(st.act||0,0),S.tabs.length-1)}
   else S.tabs.push({id:nextId++,title:'consulta',sql:'',results:[],error:null,running:false});
+  stateReady=true;
   drawTabs();loadEditor();
   const want=new URLSearchParams(location.search).get('a');
-  const a=await loadAliases(want||(st&&st.alias));
+  const a=await loadAliases(want||st.alias);
   if(!a){openConn(false);return}
-  await setAlias(a,st&&st.alias===a?st.db:'');
+  await setAlias(a,S.lastDb[a]);
   $('#sql').focus();
 })();
 </script>

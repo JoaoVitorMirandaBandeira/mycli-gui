@@ -34,11 +34,12 @@ Type=Application
 Name=my — MySQL
 Comment=Cliente MySQL leve (mycli em janela)
 Exec=$bin/my -g
-Icon=my-gui
+Icon=$share/my-gui.svg
 Terminal=false
 Categories=Development;Database;
 StartupWMClass=chrome-127.0.0.1__-Default
 DESK
+command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
 # 3) PATH (só se ~/.local/bin ainda não estiver nele)

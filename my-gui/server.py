@@ -53,6 +53,55 @@ def load_aliases():
     return out
 
 
+# ----------------------------------------------------------------- estado ---
+CONF_DIR = os.path.join(HOME, '.config', 'my-gui')
+STATE_JSON = os.path.join(CONF_DIR, 'state.json')
+_state_lock = threading.Lock()
+
+
+def state_get():
+    for p in (STATE_JSON, STATE_JSON + '.bak'):
+        try:
+            with open(p, encoding='utf-8') as f:
+                d = json.load(f)
+            if isinstance(d, dict):
+                return d
+        except (OSError, ValueError):
+            continue
+    return {}
+
+
+def state_set(doc):
+    """Grava abas, SQL, conexão e histórico: arquivo temporário + fsync + rename (atômico)."""
+    if not isinstance(doc, dict):
+        raise ApiError('estado inválido')
+    with _state_lock:
+        merged = state_get()
+        merged.update(doc)  # chaves ausentes (ex.: hist) são preservadas
+        raw = json.dumps(merged, ensure_ascii=False)
+        if len(raw) > 8_000_000:
+            raise ApiError('estado grande demais')
+        os.makedirs(CONF_DIR, mode=0o700, exist_ok=True)
+        tmp = STATE_JSON + '.tmp'
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(raw)
+            f.flush()
+            os.fsync(f.fileno())
+        if os.path.exists(STATE_JSON):
+            try:
+                os.replace(STATE_JSON, STATE_JSON + '.bak')  # última versão boa
+            except OSError:
+                pass
+        os.replace(tmp, STATE_JSON)
+        try:
+            dfd = os.open(CONF_DIR, os.O_RDONLY)
+            os.fsync(dfd)
+            os.close(dfd)
+        except OSError:
+            pass
+
+
 def write_cfg(lines):
     tmp = CFG + '.tmp'
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -281,6 +330,11 @@ def api(path, d):
             dict(name=k, host=v['host'], port=v['port'], user=v['user'],
                  db=v['db'] or '')
             for k, v in load_aliases().items()])
+    if path == '/api/state/get':
+        return dict(state=state_get())
+    if path == '/api/state/set':
+        state_set(d.get('state'))
+        return {}
     if path == '/api/alias/save':
         name, host, port, user, pw = alias_args(d)
         q = lambda s: urllib.parse.quote(s, safe='')
@@ -392,6 +446,8 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, 'forbidden', 'text/plain')
         u = urllib.parse.urlparse(self.path)
         n = int(self.headers.get('Content-Length') or 0)
+        if n > 16_000_000:
+            return self._send(413, {'error': 'requisição grande demais'})
         raw = self.rfile.read(n) if n else b''
         if u.path == '/api/bye':  # sendBeacon não envia cabeçalhos
             if hmac.compare_digest(urllib.parse.parse_qs(u.query).get('t', [''])[0], TOKEN):
