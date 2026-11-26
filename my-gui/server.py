@@ -4,7 +4,7 @@
 Usa os aliases de ~/.myclirc ([alias_dsn]). Só escuta em 127.0.0.1, com token.
 Senhas nunca vão para a página. Encerra sozinho quando a janela é fechada.
 """
-import datetime, decimal, hmac, json, os, re, secrets, shutil, subprocess, sys
+import datetime, decimal, hashlib, hmac, json, os, re, secrets, shutil, subprocess, sys
 import threading, time, urllib.parse, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -495,15 +495,41 @@ def open_window(url):
     webbrowser.open(url)
 
 
+def code_version():
+    """Hash dos arquivos instalados: detecta servidor antigo ainda rodando após uma atualização."""
+    h = hashlib.sha1()
+    d = os.path.dirname(HTML_PATH)
+    for n in ('server.py', 'index.html', 'my-gui.svg'):
+        try:
+            h.update(open(os.path.join(d, n), 'rb').read())
+        except OSError:
+            pass
+    return h.hexdigest()[:12]
+
+
 def existing_instance():
     try:
         st = json.load(open(STATE_FILE))
         req = urllib.request.Request(f"http://127.0.0.1:{st['port']}/api/ping",
                                      headers={'X-Token': st['token']})
         urllib.request.urlopen(req, timeout=1.5).read()
-        return st
     except Exception:
         return None
+    if st.get('ver') == code_version():
+        return st
+    # servidor de uma versão antiga: encerra (só se for mesmo o nosso) e sobe o novo
+    try:
+        pid = int(st['pid'])
+        if b'server.py' in open(f'/proc/{pid}/cmdline', 'rb').read():
+            os.kill(pid, 15)
+            time.sleep(0.4)
+    except Exception:
+        pass
+    try:
+        os.remove(STATE_FILE)
+    except OSError:
+        pass
+    return None
 
 
 def main():
@@ -519,7 +545,7 @@ def main():
     os.makedirs(STATE_DIR, exist_ok=True)
     fd = os.open(STATE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w') as f:
-        json.dump(dict(port=port, token=TOKEN, pid=os.getpid()), f)
+        json.dump(dict(port=port, token=TOKEN, pid=os.getpid(), ver=code_version()), f)
     threading.Thread(target=watchdog, daemon=True).start()
     open_window(f'http://127.0.0.1:{port}/?t={TOKEN}{extra}')
     srv.serve_forever()

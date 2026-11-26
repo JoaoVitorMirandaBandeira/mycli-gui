@@ -212,7 +212,9 @@ $('#tabs').addEventListener('click',e=>{
 });
 $('#tabs').addEventListener('auxclick',e=>{const t=e.target.closest('.tab[data-i]');if(t&&e.button===1)closeTab(+t.dataset.i)});
 $('#sql').addEventListener('input',e=>{
-  cur().sql=e.target.value;save();hlRender();
+  const tb=cur();tb.sql=e.target.value;
+  if(!tb.pinned){tb.title=tb.sql.replace(/\s+/g,' ').trim().slice(0,28)||'consulta';const el=$('#tabs .tab.on span');if(el)el.textContent=tb.title}
+  save();hlRender();
   if(AC.skip)return;
   if(AC.open||e.inputType==='insertText')acUpdate(false);
 });
