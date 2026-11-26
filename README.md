@@ -1,73 +1,53 @@
-# my — MySQL leve para o dia a dia
+# my — MySQL leve
 
-Um atalho único (`my`) para trabalhar com vários MySQL **sem abrir um DBeaver pesado**:
+Um comando só, `my`, para consultar seus bancos MySQL sem abrir um DBeaver pesado:
 
-- `my` abre uma **janela gráfica leve** (servidor Python local + janela do Chrome em modo app).
-- `my <conexão>` abre o **mycli** no terminal, já conectado.
-- As conexões vêm de um só lugar: os aliases `[alias_dsn]` do `~/.myclirc`.
+- **`my`** abre uma janela gráfica leve (editor SQL com cores e autocomplete, resultado em tabela).
+- **`my nome`** abre o mycli no terminal, já conectado.
 
-## Interface gráfica (`my-gui`)
-
-- Conexão e banco no topo; árvore de tabelas à esquerda (clique = `SELECT * … LIMIT 200`, ⓘ = `DESCRIBE`).
-- Editor SQL com **destaque de sintaxe** e **autocomplete** de tabelas, colunas (inclusive por alias, `j.`), bancos, palavras-chave e funções. `Ctrl+Espaço` força a sugestão.
-- Abas, histórico (`Alt+H`), vários comandos separados por `;` (um resultado para cada).
-- Resultado: cabeçalho fixo, ordenar por coluna, filtro de texto, **visão vertical** (equivale ao `\G`), painel do registro, copiar valor (duplo clique), exportar CSV.
-- Confirmação antes de `DROP`, `TRUNCATE` e `DELETE`/`UPDATE` sem `WHERE`.
-
-Atalhos: `Ctrl+Enter`/`F5` executa (ou só a seleção) · `Alt+N` nova aba · `Alt+W` fecha aba · `Alt+H` histórico.
-
-### Segurança
-
-- O servidor escuta **só em `127.0.0.1`**, numa porta aleatória, com token por sessão (e valida `Host`).
-- As senhas ficam no `~/.myclirc` (permissão 600) e **nunca vão para a página**.
-- O processo encerra sozinho quando a janela é fechada.
-
-## Instalação
-
-Requisitos: Linux, `python3`, `python3-pymysql`, `mycli`, Google Chrome/Chromium (sem Chrome ele abre o navegador padrão).
+## Instalar (Ubuntu/Debian)
 
 ```bash
-sudo apt install mycli python3-pymysql      # se ainda não tiver
+git clone https://github.com/JoaoVitorMirandaBandeira/mycli-gui.git
+cd mycli-gui
 ./install.sh
 ```
 
-Instala `~/.local/bin/my`, os arquivos em `~/.local/share/my-gui/`, o ícone e o atalho “my — MySQL” no menu de aplicativos.
+O `install.sh` instala o que faltar (`mycli`, `python3-pymysql`; pede sua senha de administrador), copia os arquivos para `~/.local` e cria o atalho **"my — MySQL"** no menu de aplicativos.
 
-## Conexões
+## Usar
 
-Adicionar uma nova:
-
-```bash
-my -a              # pergunta nome, host, porta, usuário e senha
-```
-
-ou edite o `~/.myclirc`:
-
-```ini
-[alias_dsn]
-producao = mysql://usuario:senha@10.0.0.5:3306/
-```
-
-(caracteres especiais na senha precisam de escape: `@`→`%40`, `:`→`%3A`, `/`→`%2F`, `#`→`%23`.)
-
-Importar do DBeaver:
+**1. Adicione uma conexão** (só na primeira vez):
 
 ```bash
-python3 tools/import_dbeaver.py
+my -a
 ```
 
-## Comandos
+Responda nome, host, porta, usuário e senha. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
 
-| Comando | O que faz |
+**2. Abra a janela:**
+
+```bash
+my
+```
+
+Escolha a conexão e o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
+
+## Dicas
+
+| Quero | Como |
 |---|---|
-| `my` / `my -g [alias]` | abre a janela gráfica (opcionalmente já numa conexão) |
-| `my alias [banco]` | abre o mycli no terminal |
-| `my -m` | menu de conexões no terminal |
-| `my -a` | adiciona uma conexão |
-| `my -l` | lista as conexões |
+| Ver um registro "em pé" (como `\G`) | botão **Vertical** no resultado |
+| Sugestões de tabela/coluna | digite; ou **Ctrl+Espaço** |
+| Executar só um trecho | selecione e **Ctrl+Enter** |
+| Histórico de consultas | **Alt+H** |
+| Terminal em vez de janela | `my nome_da_conexao` |
+| Listar conexões | `my -l` |
 
-## Notas
+As conexões ficam no `~/.myclirc` (permissão 600). As senhas nunca vão para a página, e o servidor só aceita conexões da própria máquina (`127.0.0.1`).
 
-- O mycli 1.54 tem `-d alias` quebrado; o `my` passa o alias posicional.
-- O launcher usa `--ssl-mode off`: os servidores de origem derrubavam a conexão com SSL. Ajuste em `bin/my` se o seu servidor exigir SSL.
-- Log da interface: `~/.cache/my-gui/log`.
+## Problemas comuns
+
+- **`my: command not found`** — abra um terminal novo (o instalador adicionou `~/.local/bin` ao PATH).
+- **Não conecta** — confira VPN/rede e o host/porta com `my -l`; o erro aparece no topo da janela.
+- **Log da janela:** `~/.cache/my-gui/log`.
