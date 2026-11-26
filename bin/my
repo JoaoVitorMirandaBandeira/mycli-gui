@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# my            -> abre a janela gráfica (my-gui)
+# my -g alias   -> janela gráfica já na conexão "alias"
+# my -m         -> escolhe a conexão no terminal (fzf ou menu numerado)
+# my -a         -> adiciona conexão
+# my srv3311    -> abre direto
+# my srv3311 db -> abre já no banco "db"
+# my -l         -> lista aliases
+cfg="$HOME/.myclirc"
+aliases() { awk '/^\[alias_dsn\]/{f=1;next} /^\[/{f=0} f && /=/{gsub(/ *=.*/,"");print}' "$cfg"; }
+
+[ "$1" = "-l" ] && { aliases; exit; }
+
+if [ "$1" = "-a" ]; then
+  # my -a [nome]  -> adiciona uma conexão nova (pergunta host, porta, usuário e senha)
+  name="$2"
+  [ -z "$name" ] && read -r -p 'Nome da conexão (alias): ' name
+  [ -z "$name" ] && { echo "cancelado"; exit 1; }
+  read -r -p 'Host: ' host;                 [ -z "$host" ] && { echo "cancelado"; exit 1; }
+  read -r -p 'Porta [3306]: ' port;         port="${port:-3306}"
+  read -r -p 'Usuário: ' user
+  read -r -s -p 'Senha (vazio = perguntar ao conectar): ' pass; echo
+  MY_NAME="$name" MY_HOST="$host" MY_PORT="$port" MY_USER="$user" MY_PASS="$pass" MY_CFG="$cfg" \
+  python3 -I - <<'PY'
+import os, re, sys, urllib.parse
+e = os.environ
+name, cfg = e['MY_NAME'], e['MY_CFG']
+if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+    sys.exit("Nome inválido: use só letras, números, _ . -")
+q = lambda s: urllib.parse.quote(s, safe='')
+auth = q(e['MY_USER']) + (':' + q(e['MY_PASS']) if e['MY_PASS'] else '')
+line = f"{name} = mysql://{auth}@{e['MY_HOST']}:{e['MY_PORT']}/"
+lines = open(cfg).read().splitlines() if os.path.exists(cfg) else []
+out, inside, done = [], False, False
+for l in lines:
+    if re.match(r'\s*\[', l):
+        inside = l.strip() == '[alias_dsn]'
+    if inside and re.match(rf'\s*{re.escape(name)}\s*=', l):
+        print(f"Alias '{name}' já existia: substituído."); l = line; done = True
+    out.append(l)
+    if inside and l.strip() == '[alias_dsn]' and not done and not any(
+            re.match(rf'\s*{re.escape(name)}\s*=', x) for x in lines):
+        out.append(line); done = True
+if not done:
+    out += ['', '[alias_dsn]', line]
+open(cfg, 'w').write('\n'.join(out) + '\n')
+os.chmod(cfg, 0o600)
+print(f"Conexão '{name}' salva. Use: my {name}")
+PY
+  exit
+fi
+
+# my / my -g [alias] -> abre a interface gráfica (janela local, leve)
+if [ $# -eq 0 ] || [ "$1" = "-g" ]; then
+  shift 2>/dev/null
+  mkdir -p "$HOME/.cache/my-gui"
+  setsid -f python3 -I "$HOME/.local/share/my-gui/server.py" "$@" >>"$HOME/.cache/my-gui/log" 2>&1
+  exit
+fi
+
+# my -m -> menu no terminal
+if [ "$1" = "-m" ]; then shift; set -- "" "$@"; fi
+sel="$1"
+if [ -z "$sel" ]; then
+  if command -v fzf >/dev/null; then
+    sel=$(aliases | fzf --prompt='mysql> ' --height=40%) || exit
+  else
+    mapfile -t list < <(aliases)
+    for i in "${!list[@]}"; do printf '%d) %s\n' $((i+1)) "${list[$i]}"; done
+    while :; do
+      read -r -p 'Conexão (número ou nome): ' ans || exit
+      [ -z "$ans" ] && exit
+      if [[ "$ans" =~ ^[0-9]+$ ]] && [ "$ans" -ge 1 ] && [ "$ans" -le "${#list[@]}" ]; then
+        sel="${list[$((ans-1))]}"; break
+      fi
+      matches=()
+      for a in "${list[@]}"; do [[ "$a" == *"$ans"* ]] && matches+=("$a"); done
+      if [ "${#matches[@]}" -eq 1 ]; then sel="${matches[0]}"; break; fi
+      for a in "${matches[@]}"; do [ "$a" = "$ans" ] && { sel="$a"; break 2; }; done
+      echo "  '$ans' não encontrado ou ambíguo (${matches[*]:-nenhum})"
+    done
+  fi
+fi
+shift 2>/dev/null
+# mycli 1.54: "-d alias" está quebrado; alias posicional funciona. Servidores recusam SSL -> off.
+db=()
+[ -n "$1" ] && case "$1" in -*) ;; *) db=(--init-command "use \`$1\`"); shift ;; esac
+exec mycli --ssl-mode off "${db[@]}" "$@" "$sel"

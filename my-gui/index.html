@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>my — MySQL</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<style>
+:root{--bg:#fff;--bg2:#f4f5f7;--bg3:#e9ebef;--fg:#1c2330;--mut:#6b7585;--line:#d9dde4;--acc:#2f6fed;--accfg:#fff;--err:#c62828;--ok:#2e9e5b;--warn:#c77d00;--sel:#dbe7ff;--nul:#98a1b0;--zebra:#f9fafb;--tk:#b5179e;--ts:#2e7d32;--tn:#b45309;--tc:#8a94a3;--tf:#0369a1;--ti:#8a5a00;--tb:#00796b}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--bg2:#1b1f26;--bg3:#262c36;--fg:#e4e8ee;--mut:#8b95a5;--line:#2c323c;--acc:#5b92ff;--accfg:#0b1220;--err:#ff7b72;--ok:#4cc38a;--warn:#e3a33b;--sel:#26385e;--nul:#5f6877;--zebra:#171b21;--tk:#ff79c6;--ts:#a5d6a7;--tn:#f2a65a;--tc:#6b7585;--tf:#7dcfff;--ti:#e0af68;--tb:#5fd3c3}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;overflow:hidden}
+.mono,#sql,table.g,.kv,.q{font-family:ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;font-size:13px}
+header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header b.logo{font-size:15px;letter-spacing:.5px;margin-right:4px}
+select,input,button{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:-1px}
+button{cursor:pointer;background:var(--bg3)}
+button:hover{border-color:var(--acc)}
+button.pri{background:var(--acc);color:var(--accfg);border-color:var(--acc);font-weight:600}
+button.on{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+kbd{font:11px ui-monospace,monospace;background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+button.pri kbd{background:transparent;color:inherit;border-color:currentColor;opacity:.8}
+.sp{flex:1}
+#st{display:flex;align-items:center;gap:6px;color:var(--mut);font-size:12.5px;max-width:42ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#st i{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+#st.ok i{background:var(--ok)}#st.err i{background:var(--err)}#st.err{color:var(--err)}#st.warn i{background:var(--warn)}
+#db{width:200px}
+#main{flex:1;display:flex;min-height:0}
+aside{background:var(--bg2);display:flex;flex-direction:column;min-height:0}
+#side{width:250px;border-right:1px solid var(--line)}
+#side.hide{display:none}
+#side input{margin:8px;width:calc(100% - 16px)}
+#tables{list-style:none;margin:0;padding:0 0 8px;overflow:auto;flex:1}
+#tables li{display:flex;align-items:center;padding:3px 10px;cursor:pointer;white-space:nowrap}
+#tables li:hover{background:var(--bg3)}
+#tables .n{flex:1;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,monospace;font-size:12.5px}
+#tables li.view .n{font-style:italic;color:var(--mut)}
+#tables i{font-style:normal;color:var(--mut);padding:0 4px;border-radius:4px;visibility:hidden}
+#tables li:hover i{visibility:visible}#tables i:hover{background:var(--line);color:var(--fg)}
+#cnt{padding:4px 10px;color:var(--mut);font-size:12px;border-top:1px solid var(--line)}
+#work{flex:1;display:flex;flex-direction:column;min-width:0}
+#tabs{display:flex;gap:2px;padding:6px 8px 0;background:var(--bg2);overflow-x:auto;flex:none}
+.tab{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px 6px 0 0;cursor:pointer;color:var(--mut);white-space:nowrap;max-width:220px}
+.tab span{overflow:hidden;text-overflow:ellipsis}
+.tab:hover{background:var(--bg3)}
+.tab.on{background:var(--bg);color:var(--fg);box-shadow:inset 0 2px 0 var(--acc)}
+.tab b{font-weight:400;opacity:.5}.tab b:hover{opacity:1;color:var(--err)}
+#ed{position:relative;height:150px;min-height:56px;resize:vertical;overflow:hidden;border-bottom:1px solid var(--line);background:var(--bg);flex:none}
+#ed:focus-within{box-shadow:inset 0 0 0 2px var(--acc)}
+#hl,#sql{position:absolute;inset:0;margin:0;padding:10px 14px;border:0;border-radius:0;font:13px/1.5 ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;white-space:pre;tab-size:2;overflow:auto;letter-spacing:0}
+#hl{overflow:hidden;pointer-events:none;color:var(--fg)}
+#sql{background:transparent;color:transparent;caret-color:var(--fg);resize:none;outline:none!important;box-shadow:none!important}
+#sql::selection{background:rgba(91,146,255,.38);color:transparent}
+#sql::placeholder{color:var(--mut)}
+.tk{color:var(--tk);font-weight:600}.ts{color:var(--ts)}.tn{color:var(--tn)}.tc{color:var(--tc);font-style:italic}.tf{color:var(--tf)}.ti{color:var(--ti)}.tb{color:var(--tb)}
+#ac{position:fixed;display:none;z-index:60;min-width:260px;max-width:520px;max-height:288px;overflow:auto;background:var(--bg2);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px #0006;padding:3px}
+.ai{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.ai.on{background:var(--acc);color:var(--accfg)}
+.ai .lb{font-family:ui-monospace,monospace;font-size:13px}
+.ai small{margin-left:auto;padding-left:14px;opacity:.65;font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+.ic{flex:none;width:18px;height:18px;border-radius:4px;font:700 11px/18px ui-monospace,monospace;text-align:center;color:#fff}
+.ic.table{background:#2e8b8b}.ic.col{background:#4a7bd8}.ic.kw{background:#a04fb5}.ic.fn{background:#c47a1a}.ic.db{background:#5c6b7a}
+.sh{display:flex;align-items:center;gap:4px;padding-right:8px}
+.sh input{flex:1;min-width:0}
+.sh button{padding:3px 8px}
+#res{flex:1;overflow:auto;min-height:0}
+.msg{padding:28px;color:var(--mut);text-align:center}
+.err{margin:12px;padding:10px 14px;border-left:4px solid var(--err);background:var(--bg2);color:var(--err);white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:13px}
+.blk{margin-bottom:6px}
+.bh{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3}
+.bh .q{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:0 1 auto;max-width:45%}
+.bh .meta{white-space:nowrap;font-size:12.5px;color:var(--mut)}
+.bh .meta b{color:var(--warn)}
+.bh .f{width:170px;padding:3px 8px}
+.bh button{padding:3px 10px}
+.blk.ok .meta{color:var(--ok)}
+table.g{border-collapse:separate;border-spacing:0;min-width:100%}
+table.g th{position:sticky;top:36px;z-index:2;background:var(--bg3);text-align:left;padding:5px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;font-weight:600}
+table.g th:hover{color:var(--acc)}
+table.g td{padding:3px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;max-width:460px;overflow:hidden;text-overflow:ellipsis}
+table.g tr:nth-child(even) td{background:var(--zebra)}
+table.g tr:hover td{background:var(--bg3)}
+table.g tr.sel td{background:var(--sel)}
+td.rn,th.rn{color:var(--mut);text-align:right;width:1%;background:var(--bg2)!important;cursor:default;position:sticky;left:0}
+th.rn{z-index:4}
+td.num{text-align:right}
+.nul{color:var(--nul);font-style:italic}
+.rec{margin:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rh{padding:5px 12px;background:var(--bg3);font-weight:600;display:flex;align-items:center}
+.kv{width:100%;border-collapse:collapse}
+.kv th{width:1%;white-space:nowrap;text-align:right;vertical-align:top;color:var(--acc);padding:2px 12px;font-weight:600}
+.kv td{padding:2px 12px;white-space:pre-wrap;word-break:break-word;cursor:copy}
+.kv tr:hover td{background:var(--bg3)}
+#rec{width:360px;border-left:1px solid var(--line);overflow:auto;display:none}
+#rec.show{display:flex}
+#rec .rh button{margin-left:auto;padding:0 8px;border:0;background:transparent}
+dialog{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;width:min(820px,92vw);max-height:80vh;padding:0;margin:auto}
+dialog::backdrop{background:#0008}
+dialog input{width:calc(100% - 24px);margin:12px}
+#hl{overflow:auto;max-height:62vh;padding:0 0 8px}
+.hi{padding:6px 16px;cursor:pointer;border-top:1px solid var(--line)}
+.hi:hover{background:var(--bg3)}
+.hi small{color:var(--mut);display:block}
+.hi code{white-space:pre-wrap;font:12.5px ui-monospace,monospace;display:block;max-height:5.6em;overflow:hidden}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+#toast.on{opacity:.92}
+</style>
+</head>
+<body>
+<header>
+  <button id="tg" title="Mostrar/ocultar tabelas">☰</button>
+  <b class="logo">my</b>
+  <select id="alias" title="Conexão"></select>
+  <input id="db" list="dbs" placeholder="banco (digite para filtrar)" autocomplete="off" title="Banco de dados">
+  <datalist id="dbs"></datalist>
+  <span id="st"><i></i><span>iniciando…</span></span>
+  <span class="sp"></span>
+  <label class="mono" style="font-size:12.5px;color:var(--mut)">linhas máx.
+    <select id="limit"><option>200</option><option selected>1000</option><option>5000</option><option>20000</option></select></label>
+  <button id="hist" title="Alt+H">Histórico</button>
+  <button id="run" class="pri" title="Ctrl+Enter ou F5">▶ Executar <kbd>Ctrl+↵</kbd></button>
+</header>
+<div id="main">
+  <aside id="side">
+    <div class="sh"><input id="tf" placeholder="filtrar tabelas…" autocomplete="off"><button id="rf" title="Recarregar tabelas e colunas (após criar/alterar tabelas)">⟳</button></div>
+    <ul id="tables"></ul>
+    <div id="cnt"></div>
+  </aside>
+  <section id="work">
+    <div id="tabs"></div>
+    <div id="ed"><pre id="hl" aria-hidden="true"></pre><textarea id="sql" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="SELECT * FROM tabela LIMIT 100;   — Ctrl+Enter executa tudo (ou só a seleção) · Ctrl+Espaço sugere"></textarea></div>
+    <div id="res"></div>
+  </section>
+  <aside id="rec"></aside>
+</div>
+<dialog id="hd"><input id="hq" placeholder="buscar no histórico…" autocomplete="off"><div id="hl"></div></dialog>
+<div id="ac"></div>
+<div id="toast"></div>
+<script>
+const TOKEN='__TOKEN__';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const bq=n=>'`'+n.replace(/`/g,'``')+'`';
+const S={alias:'',db:'',tabs:[],act:0,tables:[]};
+let nextId=1,saveT=null;
+const ls={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+async function api(path,body){
+  try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Token':TOKEN},body:JSON.stringify(body||{})});return await r.json()}
+  catch(e){return{error:'Servidor local indisponível (a janela foi encerrada?)'}}
+}
+async function apiPw(path,body){
+  let r=await api(path,body);
+  if(r.need_password){
+    const p=prompt('Senha de "'+body.alias+'" (não fica salva em disco):');
+    if(p===null)return r;
+    await api('/api/password',{alias:body.alias,password:p});
+    r=await api(path,body);
+  }
+  return r;
+}
+function setStatus(t,k){const e=$('#st');e.className=k||'';e.querySelector('span').textContent=t;e.title=t}
+let tt;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),1100)}
+function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Copiado'),()=>toast('Não foi possível copiar'))}
+
+/* ---------- estado ---------- */
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>ls.set('mygui.state',{alias:S.alias,db:S.db,act:S.act,tabs:S.tabs.map(t=>({title:t.title,sql:t.sql}))}),300)}
+const cur=()=>S.tabs[S.act];
+function newTab(sql='',title='consulta',pinned=false){S.tabs.push({id:nextId++,title,sql,pinned,results:[],error:null,running:false});S.act=S.tabs.length-1;drawTabs();loadEditor();save();return cur()}
+function switchTab(i){S.act=i;drawTabs();loadEditor();save()}
+function closeTab(i){
+  if(S.tabs.length===1){Object.assign(S.tabs[0],{sql:'',title:'consulta',results:[],error:null});drawTabs();loadEditor();save();return}
+  S.tabs.splice(i,1);S.act=Math.min(S.act,S.tabs.length-1);if(i<S.act)S.act--;drawTabs();loadEditor();save();
+}
+function drawTabs(){
+  $('#tabs').innerHTML=S.tabs.map((t,i)=>`<div class="tab ${i===S.act?'on':''}" data-i="${i}"><span>${esc(t.title)}</span><b data-x="${i}">×</b></div>`).join('')+'<div class="tab" id="plus" title="Nova aba (Alt+N)">＋</div>';
+}
+function loadEditor(){setSql(cur().sql);renderRes();hideRec();acClose()}
+$('#tabs').addEventListener('click',e=>{
+  const x=e.target.closest('[data-x]');if(x)return closeTab(+x.dataset.x);
+  if(e.target.closest('#plus')){newTab();$('#sql').focus();return}
+  const t=e.target.closest('.tab');if(t)switchTab(+t.dataset.i);
+});
+$('#tabs').addEventListener('auxclick',e=>{const t=e.target.closest('.tab[data-i]');if(t&&e.button===1)closeTab(+t.dataset.i)});
+$('#sql').addEventListener('input',e=>{
+  cur().sql=e.target.value;save();hlRender();
+  if(AC.skip)return;
+  if(AC.open||e.inputType==='insertText')acUpdate(false);
+});
+$('#sql').addEventListener('scroll',()=>{const h=$('#hl'),t=$('#sql');h.scrollTop=t.scrollTop;h.scrollLeft=t.scrollLeft;acClose()});
+$('#sql').addEventListener('click',acClose);
+$('#sql').addEventListener('blur',acClose);
+$('#sql').addEventListener('keyup',e=>{if(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(e.key))acClose()});
+$('#sql').addEventListener('keydown',e=>{
+  if(AC.open){
+    if(e.key==='ArrowDown'){e.preventDefault();return acMove(1)}
+    if(e.key==='ArrowUp'){e.preventDefault();return acMove(-1)}
+    if((e.key==='Enter'||e.key==='Tab')&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey){e.preventDefault();return acAccept(AC.sel)}
+    if(e.key==='Escape'){e.preventDefault();return acClose()}
+  }
+  if((e.ctrlKey||e.metaKey)&&e.code==='Space'){e.preventDefault();return acUpdate(true)}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'||e.key==='F5'){e.preventDefault();acClose();run()}
+  else if(e.key==='Tab'&&!e.shiftKey){e.preventDefault();document.execCommand('insertText',false,'  ')}
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='F5'){e.preventDefault();run()}
+  if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();newTab();$('#sql').focus()}
+  if(e.altKey&&e.key.toLowerCase()==='w'){e.preventDefault();closeTab(S.act)}
+  if(e.altKey&&e.key.toLowerCase()==='h'){e.preventDefault();openHist()}
+});
+
+/* ---------- conexão / bancos / tabelas ---------- */
+async function setAlias(a,keepDb){
+  S.alias=a;$('#alias').value=a;S.tables=[];drawTables();
+  setStatus('conectando…','warn');
+  const r=await apiPw('/api/databases',{alias:a});
+  if(S.alias!==a)return;
+  if(r.error){setStatus(r.error,'err');$('#dbs').innerHTML='';setDbValue('');return}
+  $('#dbs').innerHTML=r.databases.map(d=>`<option value="${esc(d)}">`).join('');
+  S.dbs=r.databases;setStatus('conectado','ok');
+  const want=keepDb&&r.databases.includes(keepDb)?keepDb:(r.db||'');
+  await setDb(want);
+}
+function setDbValue(d){S.db=d;$('#db').value=d}
+async function setDb(d){
+  setDbValue(d);S.tables=[];drawTables();save();
+  if(!d)return;
+  const r=await apiPw('/api/tables',{alias:S.alias,db:d});
+  if(S.db!==d)return;
+  if(r.error){setStatus(r.error,'err');return}
+  S.tables=r.tables;drawTables();ensureCols(d);
+}
+$('#rf').addEventListener('click',()=>{if(!S.db)return;delete S.cache[ck(S.db)];setDb(S.db);toast('Recarregando…')});
+$('#alias').addEventListener('change',e=>{ls.set('mygui.alias',e.target.value);setAlias(e.target.value,'')});
+$('#db').addEventListener('change',e=>{const v=e.target.value.trim();if(!v)return setDb('');if(S.dbs&&S.dbs.includes(v))setDb(v);else{toast('Banco não encontrado');e.target.value=S.db}});
+$('#db').addEventListener('focus',e=>e.target.select());
+function drawTables(){
+  S._ts=null;hlRender();
+  const f=$('#tf').value.trim().toLowerCase();
+  const list=S.tables.filter(t=>t[0].toLowerCase().includes(f));
+  $('#tables').innerHTML=list.slice(0,3000).map(t=>`<li data-t="${esc(t[0])}" class="${t[1]==='VIEW'?'view':''}" title="${esc(t[0])}"><span class="n">${esc(t[0])}</span><i data-d="${esc(t[0])}" title="Estrutura (DESCRIBE)">ⓘ</i></li>`).join('');
+  $('#cnt').textContent=S.tables.length?`${list.length}/${S.tables.length} tabelas`:(S.db?'sem tabelas':'escolha um banco');
+}
+$('#tf').addEventListener('input',drawTables);
+$('#tables').addEventListener('click',e=>{
+  const d=e.target.closest('[data-d]');
+  if(d){const n=d.dataset.d;newTab(`DESCRIBE ${bq(n)};`,'∷ '+n,true);run();return}
+  const li=e.target.closest('li');if(li){const n=li.dataset.t;newTab(`SELECT * FROM ${bq(n)} LIMIT 200;`,n,true);run()}
+});
+$('#tg').addEventListener('click',()=>$('#side').classList.toggle('hide'));
+
+/* ---------- executar ---------- */
+function danger(sql){
+  const strip=s=>s.replace(/^(\s|--[^\n]*\n|#[^\n]*\n|\/\*[\s\S]*?\*\/)+/,'');
+  return sql.split(';').map(strip).find(s=>/^(drop|truncate)\b/i.test(s)||(/^(delete|update)\b/i.test(s)&&!/\bwhere\b/i.test(s)));
+}
+async function run(){
+  const t=cur(),ta=$('#sql');
+  const sql=ta.selectionStart!==ta.selectionEnd?ta.value.slice(ta.selectionStart,ta.selectionEnd):ta.value;
+  if(!sql.trim())return;
+  if(!S.alias)return toast('Escolha uma conexão');
+  const dg=danger(sql);
+  if(dg&&!confirm(`Comando destrutivo ou sem WHERE\nConexão: ${S.alias}${S.db?' · banco: '+S.db:''}\n\n${dg.trim().slice(0,240)}\n\nExecutar mesmo assim?`))return;
+  t.running=true;t.error=null;if(t===cur())renderRes();
+  if(!t.pinned)t.title=sql.replace(/\s+/g,' ').trim().slice(0,28)||t.title;
+  drawTabs();
+  const r=await apiPw('/api/query',{alias:S.alias,db:S.db,sql,limit:+$('#limit').value});
+  t.running=false;
+  t.results=r.results||[];t.error=r.error||null;
+  if(t===cur()){renderRes();hideRec()}
+  if(r.db!==undefined&&r.db!==null&&r.db!==S.db){setDbValue(r.db);setDb(r.db)}
+  if(!r.error&&/\b(create|drop|alter|rename)\s+(or\s+replace\s+)?(table|view)\b/i.test(sql)&&S.db){delete S.cache[ck(S.db)];setDb(S.db)}
+  pushHist(sql);save();
+}
+$('#run').addEventListener('click',run);
+
+/* ---------- resultados ---------- */
+const fmtMs=ms=>ms<1000?ms+' ms':(ms/1000).toFixed(2)+' s';
+function renderRes(){
+  const t=cur(),box=$('#res');
+  if(t.running){box.innerHTML='<div class="msg">Executando…</div>';return}
+  if(!t.results.length&&!t.error){box.innerHTML='<div class="msg">Escreva uma consulta e pressione <kbd>Ctrl</kbd> + <kbd>Enter</kbd><br><br>Clique numa tabela à esquerda para ver o conteúdo.</div>';return}
+  box.innerHTML=t.results.map(blk).join('')+(t.error?`<div class="err">${esc(t.error)}</div>`:'');
+}
+function blk(r,i){
+  const q=esc(r.sql.replace(/\s+/g,' ').slice(0,140));
+  if(!r.columns.length)return `<div class="blk ok"><div class="bh"><span class="q">${q}</span><span class="sp"></span><span class="meta">OK · ${r.affected} linha(s) afetada(s) · ${fmtMs(r.ms)}</span></div></div>`;
+  const n=r.rows.length;
+  return `<div class="blk" data-i="${i}"><div class="bh"><span class="q" title="${esc(r.sql)}">${q}</span><span class="meta">${n}${r.truncated?'+':''} linha(s) · ${fmtMs(r.ms)}${r.truncated?' · <b>cortado no máximo de linhas</b>':''}</span><span class="sp"></span><input class="f" placeholder="filtrar resultado…" value="${esc(r.filter||'')}"><button data-a="vert" class="${r.vert?'on':''}" title="Equivale ao \\G do mycli">Vertical</button><button data-a="csv">CSV</button></div><div class="gw">${grid(r)}</div></div>`;
+}
+function cmp(x,y){
+  if(x===null||y===null)return (x===null)-(y===null);
+  const nx=typeof x==='number'?x:(/^-?\d+(\.\d+)?$/.test(x)?parseFloat(x):NaN),ny=typeof y==='number'?y:(/^-?\d+(\.\d+)?$/.test(y)?parseFloat(y):NaN);
+  if(!isNaN(nx)&&!isNaN(ny))return nx-ny;
+  return String(x).localeCompare(String(y),undefined,{numeric:true,sensitivity:'base'});
+}
+function view(r){
+  let idx=r.rows.map((_,i)=>i);
+  const f=(r.filter||'').toLowerCase();
+  if(f)idx=idx.filter(i=>r.rows[i].some(v=>v!==null&&String(v).toLowerCase().includes(f)));
+  if(r.sort){const{j,d}=r.sort;idx.sort((a,b)=>cmp(r.rows[a][j],r.rows[b][j])*d)}
+  return idx;
+}
+function grid(r){
+  const idx=view(r);
+  if(r.vert)return vert(r,idx);
+  let h='<table class="g"><thead><tr><th class="rn">#</th>';
+  r.columns.forEach((c,j)=>{h+=`<th data-j="${j}">${esc(c)}${r.sort&&r.sort.j===j?(r.sort.d>0?' ▲':' ▼'):''}</th>`});
+  h+='</tr></thead><tbody>';
+  idx.forEach((i,k)=>{
+    h+=`<tr data-r="${i}"${r.sel===i?' class="sel"':''}><td class="rn">${k+1}</td>`;
+    for(const v of r.rows[i])h+=v===null?'<td class="nul">NULL</td>':`<td${typeof v==='number'?' class="num"':''}>${esc(v)}</td>`;
+    h+='</tr>';
+  });
+  return h+'</tbody></table>'+(idx.length?'':'<div class="msg">Nenhuma linha.</div>');
+}
+function kv(r,i){
+  return '<table class="kv">'+r.columns.map((c,j)=>{const v=r.rows[i][j];return `<tr><th>${esc(c)}</th>${v===null?'<td class="nul">NULL</td>':`<td>${esc(v)}</td>`}</tr>`}).join('')+'</table>';
+}
+function vert(r,idx){
+  let h=idx.slice(0,100).map((i,k)=>`<div class="rec"><div class="rh">Linha ${k+1}</div>${kv(r,i)}</div>`).join('');
+  if(idx.length>100)h+=`<div class="msg">Mostrando 100 de ${idx.length} registros (use o filtro para reduzir).</div>`;
+  return h||'<div class="msg">Nenhuma linha.</div>';
+}
+function csv(r){
+  const q=v=>v===null?'':'"'+String(v).replace(/"/g,'""')+'"';
+  const lines=[r.columns.map(q).join(';')].concat(view(r).map(i=>r.rows[i].map(q).join(';')));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='resultado.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+const regrid=(b,r)=>{b.querySelector('.gw').innerHTML=grid(r)};
+const resOf=el=>{const b=el.closest('.blk');return b?[b,cur().results[+b.dataset.i]]:[]};
+$('#res').addEventListener('click',e=>{
+  const[b,r]=resOf(e.target);if(!r)return;
+  const a=e.target.closest('[data-a]');
+  if(a){if(a.dataset.a==='vert'){r.vert=!r.vert;a.classList.toggle('on',r.vert);regrid(b,r)}else csv(r);return}
+  const th=e.target.closest('th[data-j]');
+  if(th){const j=+th.dataset.j;r.sort=!r.sort||r.sort.j!==j?{j,d:1}:(r.sort.d>0?{j,d:-1}:null);regrid(b,r);return}
+  const tr=e.target.closest('tr[data-r]');
+  if(tr){r.sel=+tr.dataset.r;b.querySelectorAll('tr.sel').forEach(x=>x.classList.remove('sel'));tr.classList.add('sel');showRec(r,r.sel);return}
+  const c=e.target.closest('.kv td');if(c)copy(c.textContent);
+});
+$('#res').addEventListener('dblclick',e=>{
+  const td=e.target.closest('table.g tbody td:not(.rn)');if(td)copy(td.classList.contains('nul')?'':td.textContent);
+});
+$('#res').addEventListener('input',e=>{
+  if(!e.target.matches('.f'))return;
+  const[b,r]=resOf(e.target);r.filter=e.target.value;regrid(b,r);
+});
+function showRec(r,i){
+  $('#rec').innerHTML=`<div style="width:100%"><div class="rh">Registro (clique no valor para copiar)<button id="rx" title="Fechar">×</button></div>${kv(r,i)}</div>`;
+  $('#rec').classList.add('show');
+}
+function hideRec(){$('#rec').classList.remove('show')}
+$('#rec').addEventListener('click',e=>{
+  if(e.target.id==='rx')return hideRec();
+  const c=e.target.closest('.kv td');if(c)copy(c.textContent);
+});
+
+/* ---------- histórico ---------- */
+function pushHist(sql){
+  const h=ls.get('mygui.hist',[]);
+  if(h[0]&&h[0].sql===sql)return;
+  h.unshift({sql,alias:S.alias,db:S.db,t:Date.now()});ls.set('mygui.hist',h.slice(0,300));
+}
+function drawHist(){
+  const q=$('#hq').value.toLowerCase();
+  const h=ls.get('mygui.hist',[]).map((x,k)=>({...x,k})).filter(x=>!q||x.sql.toLowerCase().includes(q)||(x.alias||'').includes(q)).slice(0,80);
+  $('#hl').innerHTML=h.length?h.map(x=>`<div class="hi" data-k="${x.k}"><small>${esc(x.alias||'')} · ${esc(x.db||'')} · ${new Date(x.t).toLocaleString('pt-BR')}</small><code>${esc(x.sql.slice(0,400))}</code></div>`).join(''):'<div class="msg">Nada por aqui.</div>';
+}
+function openHist(){$('#hq').value='';drawHist();$('#hd').showModal();$('#hq').focus()}
+$('#hist').addEventListener('click',openHist);
+$('#hq').addEventListener('input',drawHist);
+$('#hl').addEventListener('click',e=>{
+  const it=e.target.closest('.hi');if(!it)return;
+  const x=ls.get('mygui.hist',[])[+it.dataset.k];if(!x)return;
+  cur().sql=x.sql;setSql(x.sql);$('#hd').close();$('#sql').focus();save();
+});
+$('#hd').addEventListener('click',e=>{if(e.target.id==='hd')e.target.close()});
+
+/* ---------- editor: destaque de sintaxe ---------- */
+const KW=new Set('select from where and or not in is null like between exists case when then else end as on join inner left right outer cross natural using group by order having limit offset union all distinct insert into values update set delete create alter drop truncate table index view database schema if default primary key foreign references unique constraint add column modify change rename to show describe desc asc explain use begin commit rollback start transaction call with recursive over partition interval true false div mod xor regexp rlike binary collate charset engine auto_increment unsigned signed temporary replace ignore duplicate for lock share straight_join full tables databases columns status variables processlist grants'.split(' '));
+const FUNCS='count sum avg min max concat concat_ws coalesce ifnull nullif if now curdate curtime current_timestamp date date_format str_to_date datediff date_add date_sub timestampdiff year month day hour minute second lower upper trim ltrim rtrim length char_length substring substr replace left right round floor ceil abs group_concat cast convert json_extract json_unquote json_object json_array row_number rank dense_rank lag lead find_in_set instr locate lpad rpad reverse uuid rand database version user last_insert_id found_rows greatest least extract format'.split(' ');
+const STOP=new Set('on using where group order limit inner left right outer cross join natural set having union straight_join full values select window for lock partition into'.split(' '));
+const HL_RE=/(--[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:[^'\\]|\\[\s\S]|'')*'?|"(?:[^"\\]|\\[\s\S]|"")*"?)|(`[^`]*`?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w$]*)(\s*\()?/g;
+const tblSet=()=>S._ts||(S._ts=new Set(S.tables.map(t=>t[0].toLowerCase())));
+function hlSql(s){
+  const tb=tblSet();let out='',last=0,m;HL_RE.lastIndex=0;
+  while((m=HL_RE.exec(s))){
+    if(m.index>last)out+=esc(s.slice(last,m.index));
+    last=HL_RE.lastIndex;
+    let c='',txt=m[0],rest='';
+    if(m[1])c='tc';else if(m[2])c='ts';else if(m[3])c=tb.has(m[3].replace(/`/g,'').toLowerCase())?'tb':'ti';else if(m[4])c='tn';
+    else{const w=m[5],lw=w.toLowerCase();txt=w;rest=m[0].slice(w.length);c=KW.has(lw)?'tk':(m[6]?'tf':(tb.has(lw)?'tb':''))}
+    out+=c?`<span class="${c}">${esc(txt)}</span>`:esc(txt);
+    if(rest)out+=esc(rest);
+  }
+  return out+esc(s.slice(last))+'\n ';
+}
+function hlRender(){$('#hl').innerHTML=hlSql($('#sql').value)}
+function setSql(v){const t=$('#sql');t.value=v;hlRender();t.scrollTop=0;t.scrollLeft=0;$('#hl').scrollTop=0;$('#hl').scrollLeft=0}
+
+/* ---------- editor: autocomplete ---------- */
+const AC={open:false,items:[],sel:0,start:0,end:0,prefix:'',skip:false};
+const ICON={table:'T',col:'C',kw:'K',fn:'ƒ',db:'D'};
+S.cache={};
+const ck=db=>S.alias+'|'+db;
+function ensureCols(db){
+  const k=ck(db);let e=S.cache[k]=S.cache[k]||{};
+  if(e.cols||e.loading)return;
+  e.loading=true;
+  api('/api/columns',{alias:S.alias,db}).then(r=>{
+    e.loading=false;
+    if(r.columns){e.cols=r.columns;e.lc={};Object.keys(r.columns).forEach(t=>e.lc[t.toLowerCase()]=t)}
+    if(document.activeElement===$('#sql'))acUpdate(false);
+  });
+}
+function colsOf(db,table){
+  const e=S.cache[ck(db)];
+  if(!e||!e.cols){ensureCols(db);return null}
+  const real=e.lc[table.toLowerCase()];return real?e.cols[real]:[];
+}
+function tablesOf(db){
+  if(db===S.db)return S.tables;
+  const k=ck(db);const e=S.cache[k]=S.cache[k]||{};
+  if(e.tables)return e.tables;
+  if(!e.tl){e.tl=true;api('/api/tables',{alias:S.alias,db}).then(r=>{if(r.tables)e.tables=r.tables;if(document.activeElement===$('#sql'))acUpdate(false)})}
+  return null;
+}
+const NOISE=/--[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g;
+function refsIn(stmt){
+  const clean=stmt.replace(NOISE,' '),id='(?:`[^`]+`|[\\w$]+)',idq=`${id}(?:\\s*\\.\\s*${id})?`,map={};
+  const add=(ref,al)=>{
+    const p=ref.split(/\s*\.\s*/).map(x=>x.replace(/`/g,'')),table=p[p.length-1],db=p.length>1?p[0]:S.db;
+    if(!table||table.toLowerCase()==='select')return;
+    map[table.toLowerCase()]={db,table};
+    const a=al&&al.replace(/`/g,'');
+    if(a&&!STOP.has(a.toLowerCase()))map[a.toLowerCase()]={db,table};
+  };
+  for(const m of clean.matchAll(new RegExp(`\\b(?:join|update|into|describe|truncate(?:\\s+table)?|table)\\s+(${idq})(?:\\s+(?:as\\s+)?(${id}))?`,'gi')))add(m[1],m[2]);
+  for(const m of clean.matchAll(/\bfrom\b([\s\S]*?)(?=\b(?:where|group|order|having|limit|union|join|inner|left|right|cross|natural|on|set|window|for)\b|[;)]|$)/gi))
+    for(const seg of m[1].split(',')){const mm=seg.trim().match(new RegExp(`^(${idq})(?:\\s+(?:as\\s+)?(${id}))?\\s*$`,'i'));if(mm)add(mm[1],mm[2])}
+  return map;
+}
+function rank(items,q){
+  const o={col:0,table:1,db:2,kw:3,fn:4},out=[],seen=new Set();
+  for(const it of items){
+    const l=it.label.toLowerCase();let s;
+    if(!q)s=1;else if(l.startsWith(q))s=0;else if(l.includes('_'+q))s=1;else if(l.includes(q))s=2;else continue;
+    if(l===q&&(it.t==='kw'||it.t==='fn'))continue;
+    const key=it.t+'|'+l+'|'+(it.detail||'');if(seen.has(key))continue;seen.add(key);
+    out.push([s,o[it.t],it]);
+  }
+  out.sort((a,b)=>a[0]-b[0]||a[1]-b[1]||a[2].label.localeCompare(b[2].label));
+  return out.slice(0,14).map(x=>x[2]);
+}
+function acCandidates(text,pos,force){
+  const m=/`?[\w$]*$/.exec(text.slice(0,pos)),prefix=m[0],start=pos-prefix.length;
+  const a=text.lastIndexOf(';',start-1)+1;let b=text.indexOf(';',pos);if(b<0)b=text.length;
+  const stmt=text.slice(a,b),stBefore=text.slice(a,start),q=prefix.replace(/^`/,'').toLowerCase();
+  const dm=/(`[^`]+`|[\w$]+)\s*\.\s*$/.exec(stBefore);
+  let items=[];
+  if(dm){
+    const ql=dm[1].replace(/`/g,'').toLowerCase(),hit=refsIn(stmt)[ql];
+    let tgt=hit||(S.tables.some(t=>t[0].toLowerCase()===ql)?{db:S.db,table:ql}:null);
+    if(tgt){const cs=colsOf(tgt.db,tgt.table);(cs||[]).forEach(c=>items.push({t:'col',label:c[0],detail:c[1]+(c[2]==='PRI'?' · PK':'')}))}
+    else{
+      const db=(S.dbs||[]).find(d=>d.toLowerCase()===ql);
+      if(db)(tablesOf(db)||[]).forEach(t=>items.push({t:'table',label:t[0],detail:db}));
+    }
+    return{start,prefix,items:rank(items,q)};
+  }
+  if(!force&&q.length<1)return null;
+  const toks=stBefore.replace(NOISE,' ').match(/`[^`]*`|[\w$]+|[^\s\w]/g)||[],tk=(toks[toks.length-1]||'').toLowerCase();
+  let ctx='expr';
+  if(['from','join','update','into','table','describe','truncate'].includes(tk)||(tk==='desc'&&toks.length===1))ctx='table';
+  else if(tk==='use'&&toks.length===1)ctx='db';
+  else if(tk===','){
+    for(let i=toks.length-1;i>=0;i--){const t=toks[i].toLowerCase();if(t==='from'){ctx='table';break}if(['select','where','on','group','order','having','set','join','into','values','limit','(',')'].includes(t))break}
+  }
+  if(ctx==='db')(S.dbs||[]).forEach(d=>items.push({t:'db',label:d}));
+  else if(ctx==='table'){
+    S.tables.forEach(t=>items.push({t:'table',label:t[0],detail:t[1]==='VIEW'?'view':''}));
+    (S.dbs||[]).forEach(d=>items.push({t:'db',label:d}));
+  }else{
+    const refs=refsIn(stmt),done=new Set();
+    for(const r of Object.values(refs)){
+      const key=r.db+'.'+r.table;if(done.has(key))continue;done.add(key);
+      (colsOf(r.db,r.table)||[]).forEach(c=>items.push({t:'col',label:c[0],detail:r.table+' · '+c[1]}));
+    }
+    if(!done.size)S.tables.forEach(t=>items.push({t:'table',label:t[0]}));
+    Object.keys(refs).forEach(a=>{if(refs[a].table.toLowerCase()!==a)items.push({t:'table',label:a,detail:'alias de '+refs[a].table})});
+    KW.forEach(k=>items.push({t:'kw',label:k}));
+    FUNCS.forEach(f=>items.push({t:'fn',label:f}));
+  }
+  return{start,prefix,items:rank(items,q)};
+}
+function acUpdate(force){
+  const ta=$('#sql');
+  if(ta.selectionStart!==ta.selectionEnd)return acClose();
+  const r=acCandidates(ta.value,ta.selectionStart,force);
+  if(!r||!r.items.length)return acClose();
+  Object.assign(AC,{open:true,items:r.items,sel:0,start:r.start,end:ta.selectionStart,prefix:r.prefix});
+  acDraw();
+}
+function caretXY(){
+  const ta=$('#sql'),cs=getComputedStyle(ta),lines=ta.value.slice(0,ta.selectionStart).split('\n'),ln=lines.length-1;
+  let col=0;for(const ch of lines[ln])col=ch==='\t'?(Math.floor(col/2)+1)*2:col+1;
+  if(!caretXY.cw){const s=document.createElement('span');s.style.cssText='position:absolute;visibility:hidden;white-space:pre;font:'+cs.font;s.textContent='x'.repeat(100);document.body.appendChild(s);caretXY.cw=s.getBoundingClientRect().width/100;s.remove()}
+  const lh=parseFloat(cs.lineHeight),r=ta.getBoundingClientRect();
+  return{x:r.left+parseFloat(cs.paddingLeft)+col*caretXY.cw-ta.scrollLeft,y:r.top+parseFloat(cs.paddingTop)+(ln+1)*lh-ta.scrollTop,lh};
+}
+function acDraw(){
+  const el=$('#ac');
+  el.innerHTML=AC.items.map((it,i)=>`<div class="ai${i===AC.sel?' on':''}" data-i="${i}"><b class="ic ${it.t}">${ICON[it.t]}</b><span class="lb">${esc(it.label)}</span><small>${esc(it.detail||'')}</small></div>`).join('');
+  el.style.display='block';
+  const p=caretXY(),w=el.offsetWidth,h=el.offsetHeight;
+  let x=p.x,y=p.y+2;
+  if(x+w>innerWidth-8)x=Math.max(8,innerWidth-w-8);
+  if(y+h>innerHeight-8)y=Math.max(8,p.y-p.lh-h-2);
+  el.style.left=x+'px';el.style.top=y+'px';
+}
+function acClose(){AC.open=false;$('#ac').style.display='none'}
+function acMove(d){
+  AC.sel=(AC.sel+d+AC.items.length)%AC.items.length;
+  const el=$('#ac');el.querySelector('.on')?.classList.remove('on');
+  const n=el.children[AC.sel];n.classList.add('on');n.scrollIntoView({block:'nearest'});
+}
+function acAccept(i){
+  const it=AC.items[i],ta=$('#sql');if(!it)return;
+  const up=/[A-Z]/.test(AC.prefix)&&AC.prefix===AC.prefix.toUpperCase();
+  let txt=it.label;
+  if(it.t==='kw')txt=up?txt.toUpperCase():txt;
+  else if(it.t==='fn')txt=(up?txt.toUpperCase():txt)+'(';
+  else if(AC.prefix.startsWith('`')||!/^[A-Za-z_][\w$]*$/.test(txt))txt='`'+txt+'`';
+  AC.skip=true;ta.focus();ta.setSelectionRange(AC.start,AC.end);
+  document.execCommand('insertText',false,txt);
+  AC.skip=false;acClose();
+}
+$('#ac').addEventListener('mousedown',e=>{e.preventDefault();const it=e.target.closest('.ai');if(it)acAccept(+it.dataset.i)});
+
+/* ---------- início ---------- */
+(async function init(){
+  setInterval(()=>api('/api/ping'),5000);api('/api/ping');
+  addEventListener('pagehide',()=>navigator.sendBeacon('/api/bye?t='+encodeURIComponent(TOKEN),''));
+  const st=ls.get('mygui.state',null);
+  if(st&&st.tabs&&st.tabs.length){st.tabs.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql||'',results:[],error:null,running:false}));S.act=Math.min(st.act||0,S.tabs.length-1)}
+  else S.tabs.push({id:nextId++,title:'consulta',sql:'',results:[],error:null,running:false});
+  drawTabs();loadEditor();
+  const r=await api('/api/aliases');
+  if(!r.aliases||!r.aliases.length){setStatus('Nenhum alias em ~/.myclirc','err');return}
+  $('#alias').innerHTML=r.aliases.map(a=>`<option value="${esc(a.name)}">${esc(a.name)} — ${esc(a.host)}:${a.port}</option>`).join('');
+  const want=new URLSearchParams(location.search).get('a');
+  const names=r.aliases.map(a=>a.name);
+  const a=names.includes(want)?want:(names.includes(st&&st.alias)?st.alias:names[0]);
+  await setAlias(a,st&&st.alias===a?st.db:'');
+  $('#sql').focus();
+})();
+</script>
+</body>
+</html>

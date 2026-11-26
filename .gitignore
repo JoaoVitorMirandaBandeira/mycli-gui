@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.myclirc
+*.bak
+.DS_Store
