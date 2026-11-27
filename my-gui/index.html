@@ -765,6 +765,15 @@ $('#res').addEventListener('click',e=>{
   if(e.target.closest('.cell-editor'))return;
   const fg=e.target.closest('.fkgo');
   if(fg){const row=fg.closest('[data-r]');if(row)fkGo(r,+row.dataset.r,+fg.dataset.fk,e.ctrlKey||e.metaKey||e.shiftKey);return}
+  if(e.ctrlKey||e.metaKey){
+    const td=e.target.closest('table.g tr[data-r] td[data-col]');
+    if(td){
+      e.preventDefault();
+      const value=shownValue(r,+td.closest('tr').dataset.r,+td.dataset.col);
+      copy(String(value??''));
+      return;
+    }
+  }
   const cell=e.target.closest('.cell-value');
   if(cell){hideRec();startCell(cell.closest('td'),b,r);return}
   const a=e.target.closest('[data-a]');
@@ -797,6 +806,7 @@ $('#res').addEventListener('click',e=>{
   const c=e.target.closest('.kv td');if(c)copy(cellText(c));
 });
 $('#res').addEventListener('dblclick',e=>{
+  if(e.ctrlKey||e.metaKey)return;
   const td=e.target.closest('table.g tbody tr[data-r] td:not(.rn)');
   if(!td||e.target.closest('.cell-editor')||td.querySelector('.cell-value'))return;
   const [b,r]=resOf(td),j=+td.dataset.col;

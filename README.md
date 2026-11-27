@@ -82,6 +82,7 @@ Os testes do parser rodam com `node --test tests/sql-editor.test.cjs` e `python3
 | Quero | Como |
 |---|---|
 | Ver um registro "em pé" (como `\G`) | botão **Vertical** no resultado |
+| Copiar o valor de uma célula | **Ctrl+clique** na célula do resultado |
 | Sugestões de tabela/coluna | digite; ou **Ctrl+Espaço** |
 | Executar só um trecho | selecione e **Ctrl+Enter** |
 | Histórico de consultas | **Alt+H** |
