@@ -113,6 +113,9 @@ dialog input{width:calc(100% - 24px);margin:12px}
 #cf .cb{display:flex;gap:8px;margin-top:6px}
 #cm{min-height:1.3em;font-size:13px;white-space:pre-wrap}#cm.ok{color:var(--ok)}#cm.bad{color:var(--err)}
 button.danger{color:var(--err)}
+button.pri.stop{background:var(--err);border-color:var(--err);color:#fff}
+tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cursor:default}
+.msg b{color:var(--fg);font-variant-numeric:tabular-nums}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #toast.on{opacity:.92}
 </style>
@@ -162,7 +165,7 @@ const TOKEN='__TOKEN__';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const bq=n=>'`'+n.replace(/`/g,'``')+'`';
-const S={alias:'',db:'',lastDb:{},tabs:[],act:0,tables:[]};
+const S={alias:'',db:'',lastDb:{},dbsCache:{},tabs:[],act:0,tables:[]};
 let nextId=1,saveT=null;
 let HIST=[],stateReady=false;
 
@@ -204,7 +207,7 @@ function closeTab(i){
 function drawTabs(){
   $('#tabs').innerHTML=S.tabs.map((t,i)=>`<div class="tab ${i===S.act?'on':''}" data-i="${i}"><span>${esc(t.title)}</span><b data-x="${i}">×</b></div>`).join('')+'<div class="tab" id="plus" title="Nova aba (Alt+N)">＋</div>';
 }
-function loadEditor(){setSql(cur().sql);renderRes();hideRec();acClose()}
+function loadEditor(){setSql(cur().sql);renderRes();hideRec();acClose();updateRun()}
 $('#tabs').addEventListener('click',e=>{
   const x=e.target.closest('[data-x]');if(x)return closeTab(+x.dataset.x);
   if(e.target.closest('#plus')){newTab();$('#sql').focus();return}
@@ -242,11 +245,17 @@ document.addEventListener('keydown',e=>{
 
 /* ---------- conexão / bancos / tabelas ---------- */
 async function setAlias(a,keepDb){
-  S.alias=a;save();$('#alias').value=a;S.tables=[];drawTables();
+  S.alias=a;save();$('#alias').value=a;S.tables=[];
+  const pre=keepDb&&S.cache[a+'|'+keepDb];
+  if(pre&&pre.tables){setDbValue(keepDb);S.tables=pre.tables}  // mostra o cache na hora
+  drawTables();
+  const cd=S.dbsCache[a];
+  if(cd){S.dbs=cd;$('#dbs').innerHTML=cd.map(d=>`<option value="${esc(d)}">`).join('')}
   setStatus('conectando…','warn');
   const r=await apiPw('/api/databases',{alias:a});
   if(S.alias!==a)return;
   if(r.error){setStatus(r.error,'err');$('#dbs').innerHTML='';setDbValue('');return}
+  S.dbsCache[a]=r.databases;
   $('#dbs').innerHTML=r.databases.map(d=>`<option value="${esc(d)}">`).join('');
   S.dbs=r.databases;setStatus('conectado','ok');
   const want=keepDb&&r.databases.includes(keepDb)?keepDb:(r.db||'');
@@ -254,14 +263,19 @@ async function setAlias(a,keepDb){
 }
 function setDbValue(d){S.db=d;$('#db').value=d}
 async function setDb(d){
-  setDbValue(d);S.lastDb[S.alias]=d;S.tables=[];drawTables();save();
+  setDbValue(d);S.lastDb[S.alias]=d;save();
+  const e=d?ent(d):null;
+  S.tables=(e&&e.tables)||[];drawTables();   // cache na hora; abaixo revalida em segundo plano
   if(!d)return;
   const r=await apiPw('/api/tables',{alias:S.alias,db:d});
   if(S.db!==d)return;
   if(r.error){setStatus(r.error,'err');return}
-  S.tables=r.tables;drawTables();ensureCols(d);
+  const same=S.tables.length===r.tables.length&&S.tables.every((t,i)=>t[0]===r.tables[i][0]&&t[1]===r.tables[i][1]);
+  e.tables=r.tables;
+  if(!same){S.tables=r.tables;drawTables()}
 }
-$('#rf').addEventListener('click',()=>{if(!S.db)return;delete S.cache[ck(S.db)];setDb(S.db);toast('Recarregando…')});
+function invalidate(db){const e=S.cache[ck(db)];if(e){e.cols={};e.pend.clear();e.names=null}}
+$('#rf').addEventListener('click',()=>{if(!S.db)return;invalidate(S.db);setDb(S.db);toast('Recarregando…')});
 $('#alias').addEventListener('change',e=>setAlias(e.target.value,S.lastDb[e.target.value]));
 $('#db').addEventListener('change',e=>{const v=e.target.value.trim();if(!v)return setDb('');if(S.dbs&&S.dbs.includes(v))setDb(v);else{toast('Banco não encontrado');e.target.value=S.db}});
 $('#db').addEventListener('focus',e=>e.target.select());
@@ -287,31 +301,40 @@ function danger(sql){
 }
 async function run(){
   const t=cur(),ta=$('#sql');
+  if(t.running)return toast('Já executando — use Cancelar (Esc)');
   const sql=ta.selectionStart!==ta.selectionEnd?ta.value.slice(ta.selectionStart,ta.selectionEnd):ta.value;
   if(!sql.trim())return;
   if(!S.alias)return toast('Escolha uma conexão');
   const dg=danger(sql);
   if(dg&&!confirm(`Comando destrutivo ou sem WHERE\nConexão: ${S.alias}${S.db?' · banco: '+S.db:''}\n\n${dg.trim().slice(0,240)}\n\nExecutar mesmo assim?`))return;
-  t.running=true;t.error=null;if(t===cur())renderRes();
+  t.running=true;t.error=null;t.qid=Math.random().toString(36).slice(2);t.t0=Date.now();t.qalias=S.alias;
+  if(t===cur())renderRes();
   if(!t.pinned)t.title=sql.replace(/\s+/g,' ').trim().slice(0,28)||t.title;
-  drawTabs();
-  const r=await apiPw('/api/query',{alias:S.alias,db:S.db,sql,limit:+$('#limit').value});
+  drawTabs();updateRun();startTick();
+  const r=await apiPw('/api/query',{alias:t.qalias,db:S.db,sql,limit:+$('#limit').value,qid:t.qid});
   t.running=false;
   t.results=r.results||[];t.error=r.error||null;
-  if(t===cur()){renderRes();hideRec()}
+  if(t===cur()){renderRes();hideRec();updateRun()}
   if(r.db!==undefined&&r.db!==null&&r.db!==S.db){setDbValue(r.db);setDb(r.db)}
-  if(!r.error&&/\b(create|drop|alter|rename)\s+(or\s+replace\s+)?(table|view)\b/i.test(sql)&&S.db){delete S.cache[ck(S.db)];setDb(S.db)}
+  if(!r.error&&/\b(create|drop|alter|rename)\s+(or\s+replace\s+)?(table|view)\b/i.test(sql)&&S.db){invalidate(S.db);setDb(S.db)}
   pushHist(sql);save();
 }
-$('#run').addEventListener('click',run);
+function cancelRun(){const t=cur();if(!t.running)return;api('/api/cancel',{alias:t.qalias,qid:t.qid});toast('Cancelando…')}
+function updateRun(){const t=cur(),b=$('#run');b.classList.toggle('stop',!!t.running);b.innerHTML=t.running?'■ Cancelar <kbd>Esc</kbd>':'▶ Executar <kbd>Ctrl+↵</kbd>'}
+let tick=null;
+function startTick(){clearInterval(tick);tick=setInterval(()=>{const t=cur();if(!t.running){clearInterval(tick);return}const e=$('#res .msg b');if(e)e.textContent=((Date.now()-t.t0)/1000).toFixed(1)+' s'},200)}
+$('#run').addEventListener('click',()=>cur().running?cancelRun():run());
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.defaultPrevented&&cur().running&&!$('dialog[open]'))cancelRun()});
 
 /* ---------- resultados ---------- */
 const fmtMs=ms=>ms<1000?ms+' ms':(ms/1000).toFixed(2)+' s';
 function renderRes(){
   const t=cur(),box=$('#res');
-  if(t.running){box.innerHTML='<div class="msg">Executando…</div>';return}
+  moreObs.disconnect();
+  if(t.running){box.innerHTML=`<div class="msg">Executando… <b>${((Date.now()-t.t0)/1000).toFixed(1)} s</b><br><br><small>Esc cancela</small></div>`;return}
   if(!t.results.length&&!t.error){box.innerHTML='<div class="msg">Escreva uma consulta e pressione <kbd>Ctrl</kbd> + <kbd>Enter</kbd><br><br>Clique numa tabela à esquerda para ver o conteúdo.</div>';return}
   box.innerHTML=t.results.map(blk).join('')+(t.error?`<div class="err">${esc(t.error)}</div>`:'');
+  observeMore(box);
 }
 function blk(r,i){
   const q=esc(r.sql.replace(/\s+/g,' ').slice(0,140));
@@ -332,19 +355,37 @@ function view(r){
   if(r.sort){const{j,d}=r.sort;idx.sort((a,b)=>cmp(r.rows[a][j],r.rows[b][j])*d)}
   return idx;
 }
+const CHUNK=300,MORE=600;
+function rowHtml(r,i,k){
+  let h=`<tr data-r="${i}"${r.sel===i?' class="sel"':''}><td class="rn">${k+1}</td>`;
+  for(const v of r.rows[i])h+=v===null?'<td class="nul">NULL</td>':`<td${typeof v==='number'?' class="num"':''}>${esc(v)}</td>`;
+  return h+'</tr>';
+}
+const moreRow=(r,idx,shown)=>shown<idx.length?`<tr class="more"><td colspan="${r.columns.length+1}">Mostrando ${shown} de ${idx.length} — role para carregar mais…</td></tr>`:'';
 function grid(r){
-  const idx=view(r);
+  const idx=r._idx=view(r);
   if(r.vert)return vert(r,idx);
+  r.shown=Math.min(CHUNK,idx.length);
   let h='<table class="g"><thead><tr><th class="rn">#</th>';
   r.columns.forEach((c,j)=>{h+=`<th data-j="${j}">${esc(c)}${r.sort&&r.sort.j===j?(r.sort.d>0?' ▲':' ▼'):''}</th>`});
   h+='</tr></thead><tbody>';
-  idx.forEach((i,k)=>{
-    h+=`<tr data-r="${i}"${r.sel===i?' class="sel"':''}><td class="rn">${k+1}</td>`;
-    for(const v of r.rows[i])h+=v===null?'<td class="nul">NULL</td>':`<td${typeof v==='number'?' class="num"':''}>${esc(v)}</td>`;
-    h+='</tr>';
-  });
-  return h+'</tbody></table>'+(idx.length?'':'<div class="msg">Nenhuma linha.</div>');
+  for(let k=0;k<r.shown;k++)h+=rowHtml(r,idx[k],k);
+  return h+moreRow(r,idx,r.shown)+'</tbody></table>'+(idx.length?'':'<div class="msg">Nenhuma linha.</div>');
 }
+const moreObs=new IntersectionObserver(es=>{
+  for(const en of es){
+    if(!en.isIntersecting)continue;
+    const tr=en.target,b=tr.closest('.blk');if(!b)continue;
+    const r=cur().results[+b.dataset.i];if(!r||!r._idx)continue;
+    moreObs.unobserve(tr);
+    const idx=r._idx,from=r.shown,to=Math.min(from+MORE,idx.length);let h='';
+    for(let k=from;k<to;k++)h+=rowHtml(r,idx[k],k);
+    r.shown=to;const tb=tr.parentNode;tr.remove();
+    tb.insertAdjacentHTML('beforeend',h+moreRow(r,idx,to));
+    const nm=tb.querySelector('tr.more');if(nm)moreObs.observe(nm);
+  }
+},{root:$('#res'),rootMargin:'800px'});
+const observeMore=scope=>scope.querySelectorAll('tr.more').forEach(tr=>moreObs.observe(tr));
 function kv(r,i){
   return '<table class="kv">'+r.columns.map((c,j)=>{const v=r.rows[i][j];return `<tr><th>${esc(c)}</th>${v===null?'<td class="nul">NULL</td>':`<td>${esc(v)}</td>`}</tr>`}).join('')+'</table>';
 }
@@ -360,7 +401,7 @@ function csv(r){
   a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));
   a.download='resultado.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
 }
-const regrid=(b,r)=>{b.querySelector('.gw').innerHTML=grid(r)};
+const regrid=(b,r)=>{const g=b.querySelector('.gw');g.innerHTML=grid(r);observeMore(g)};
 const resOf=el=>{const b=el.closest('.blk');return b?[b,cur().results[+b.dataset.i]]:[]};
 $('#res').addEventListener('click',e=>{
   const[b,r]=resOf(e.target);if(!r)return;
@@ -373,7 +414,7 @@ $('#res').addEventListener('click',e=>{
   const c=e.target.closest('.kv td');if(c)copy(c.textContent);
 });
 $('#res').addEventListener('dblclick',e=>{
-  const td=e.target.closest('table.g tbody td:not(.rn)');if(td)copy(td.classList.contains('nul')?'':td.textContent);
+  const td=e.target.closest('table.g tbody tr[data-r] td:not(.rn)');if(td)copy(td.classList.contains('nul')?'':td.textContent);
 });
 $('#res').addEventListener('input',e=>{
   if(!e.target.matches('.f'))return;
@@ -428,7 +469,15 @@ function hlSql(s){
   }
   return out+esc(s.slice(last))+'\n ';
 }
-function hlRender(){$('#hlight').innerHTML=hlSql($('#sql').value)}
+let hlRaf=0,hlTo=0;
+const paintHl=v=>{$('#hlight').innerHTML=v.length>300000?esc(v)+'\n ':hlSql(v)};
+function hlRender(){
+  const v=$('#sql').value;
+  if(v.length<20000){cancelAnimationFrame(hlRaf);clearTimeout(hlTo);hlRaf=hlTo=0;paintHl(v);return}  // pequeno: na hora (sem piscar)
+  if(hlRaf||hlTo)return;                                                                              // grande: 1x por quadro
+  const go=()=>{cancelAnimationFrame(hlRaf);clearTimeout(hlTo);hlRaf=hlTo=0;paintHl($('#sql').value)};
+  hlRaf=requestAnimationFrame(go);hlTo=setTimeout(go,80);  // o timeout cobre janela em segundo plano (rAF pausa)
+}
 function setSql(v){const t=$('#sql');t.value=v;hlRender();t.scrollTop=0;t.scrollLeft=0;$('#hlight').scrollTop=0;$('#hlight').scrollLeft=0}
 
 /* ---------- editor: autocomplete ---------- */
@@ -436,26 +485,41 @@ const AC={open:false,items:[],sel:0,start:0,end:0,prefix:'',skip:false};
 const ICON={table:'T',col:'C',kw:'K',fn:'ƒ',db:'D'};
 S.cache={};
 const ck=db=>S.alias+'|'+db;
-function ensureCols(db){
-  const k=ck(db);let e=S.cache[k]=S.cache[k]||{};
-  if(e.cols||e.loading)return;
-  e.loading=true;
-  api('/api/columns',{alias:S.alias,db}).then(r=>{
-    e.loading=false;
-    if(r.columns){e.cols=r.columns;e.lc={};Object.keys(r.columns).forEach(t=>e.lc[t.toLowerCase()]=t)}
-    if(document.activeElement===$('#sql'))acUpdate(false);
-  });
+const ent=db=>S.cache[ck(db)]||(S.cache[ck(db)]={cols:{},pend:new Set(),names:null});
+function tnames(db){   // lower -> nome real, a partir de SHOW FULL TABLES (já carregado)
+  const ts=tablesOf(db);if(!ts)return null;const e=ent(db);
+  if(!e.names||e.namesSrc!==ts){e.names=new Map(ts.map(t=>[t[0].toLowerCase(),t[0]]));e.namesSrc=ts}
+  return e.names;
+}
+let colTimer=null;const colQueue=new Map();
+function queueCols(db,real){
+  const e=ent(db);if(e.cols[real]||e.pend.has(real))return;
+  e.pend.add(real);
+  const k=ck(db),q=colQueue.get(k)||{alias:S.alias,db,set:new Set()};q.set.add(real);colQueue.set(k,q);
+  clearTimeout(colTimer);colTimer=setTimeout(flushCols,30);   // agrupa vários pedidos numa ida só
+}
+function flushCols(){
+  const jobs=[...colQueue.values()];colQueue.clear();
+  for(const j of jobs){
+    const tables=[...j.set];
+    api('/api/columns',{alias:j.alias,db:j.db,tables}).then(r=>{
+      const e=S.cache[j.alias+'|'+j.db];if(!e)return;
+      for(const t of tables){e.pend.delete(t);if(r.columns)e.cols[t]=r.columns[t]||[]}
+      if(document.activeElement===$('#sql'))acUpdate(false);
+    });
+  }
 }
 function colsOf(db,table){
-  const e=S.cache[ck(db)];
-  if(!e||!e.cols){ensureCols(db);return null}
-  const real=e.lc[table.toLowerCase()];return real?e.cols[real]:[];
+  const names=tnames(db);if(!names)return null;
+  const real=names.get(table.toLowerCase());if(!real)return[];
+  const e=ent(db);if(e.cols[real])return e.cols[real];
+  queueCols(db,real);return null;
 }
 function tablesOf(db){
   if(db===S.db)return S.tables;
-  const k=ck(db);const e=S.cache[k]=S.cache[k]||{};
+  const e=ent(db);
   if(e.tables)return e.tables;
-  if(!e.tl){e.tl=true;api('/api/tables',{alias:S.alias,db}).then(r=>{if(r.tables)e.tables=r.tables;if(document.activeElement===$('#sql'))acUpdate(false)})}
+  if(!e.tl){e.tl=true;api('/api/tables',{alias:S.alias,db}).then(r=>{if(r.tables)e.tables=r.tables;else e.tl=false;if(document.activeElement===$('#sql'))acUpdate(false)})}
   return null;
 }
 const NOISE=/--[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g;

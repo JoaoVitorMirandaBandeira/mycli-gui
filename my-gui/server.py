@@ -156,40 +156,44 @@ def alias_args(d):
 
 # ------------------------------------------------------------------- pool ---
 class Pool:
+    """Duas conexões por alias: 'main' (consultas do usuário) e 'meta' (bancos/tabelas/colunas),
+    para a árvore e o autocomplete não ficarem presos atrás de uma consulta longa.
+    Não há ping a cada comando (custa uma ida e volta): só se a conexão ficou parada
+    mais de IDLE_PING segundos; o resto é tratado reconectando quando der erro."""
+    IDLE_PING = 120
+
     def __init__(self):
-        self.conns, self.pw, self.locks = {}, {}, {}
+        self.conns, self.pw, self.locks, self.used = {}, {}, {}, {}
         self.glock = threading.Lock()
 
-    def lock(self, alias):
+    def lock(self, alias, kind='main'):
         with self.glock:
-            return self.locks.setdefault(alias, threading.RLock())
+            return self.locks.setdefault((alias, kind), threading.RLock())
 
-    def drop(self, alias):
-        c = self.conns.pop(alias, None)
-        if c is not None:
-            try:
-                c._force_close()
-            except Exception:
-                pass
+    def drop(self, alias, kind=None):
+        for k in ((kind,) if kind else ('main', 'meta')):
+            c = self.conns.pop((alias, k), None)
+            if c is not None:
+                try:
+                    c._force_close()
+                except Exception:
+                    pass
 
-    def get(self, alias):
+    def creds(self, alias):
         al = load_aliases().get(alias)
         if not al:
             raise ApiError(f"Alias '{alias}' não existe no ~/.myclirc")
         pw = al['password'] if al['password'] is not None else self.pw.get(alias)
         if pw is None:
             raise ApiError('Senha necessária', need_password=True)
-        c = self.conns.get(alias)
-        if c is not None:
-            try:
-                c.ping(reconnect=True)
-                return c
-            except Exception:
-                self.drop(alias)
+        return al, pw
+
+    def connect(self, alias, read_timeout=900):
+        al, pw = self.creds(alias)
         try:
-            c = pymysql.connect(
+            return pymysql.connect(
                 host=al['host'], port=al['port'], user=al['user'], password=pw,
-                database=al['db'], connect_timeout=8, read_timeout=900,
+                database=al['db'], connect_timeout=8, read_timeout=read_timeout,
                 autocommit=True, charset='utf8mb4',
                 cursorclass=pymysql.cursors.SSCursor)
         except pymysql.MySQLError as e:
@@ -197,7 +201,19 @@ class Pool:
                 del self.pw[alias]
                 raise ApiError(emsg(e), need_password=True)
             raise ApiError(emsg(e))
-        self.conns[alias] = c
+
+    def get(self, alias, kind='main'):
+        key = (alias, kind)
+        c = self.conns.get(key)
+        if c is not None and time.time() - self.used.get(key, 0) > self.IDLE_PING:
+            try:
+                c.ping(reconnect=True)
+            except Exception:
+                self.drop(alias, kind)
+                c = None
+        if c is None:
+            c = self.conns[key] = self.connect(alias)
+        self.used[key] = time.time()
         return c
 
 
@@ -261,21 +277,42 @@ def jv(v):
     return str(v)  # datetime, date, time, timedelta, Decimal, ...
 
 
-def run_query(alias, db, sql, limit):
+READ_RE = re.compile(r'\s*\(*\s*(select|show|describe|desc|explain|use)\b', re.I)
+running, cancelled = {}, {}   # alias -> (qid, thread_id) ; qid -> instante do pedido de cancelamento
+
+
+def _gone(e):
+    return (bool(e.args) and e.args[0] in (2006, 2013, 2055)) or isinstance(e, pymysql.InterfaceError)
+
+
+def run_query(alias, db, sql, limit, qid=None):
     limit = max(1, min(int(limit or 1000), 20000))
     results, err = [], None
     with pool.lock(alias):
         cur_db = db or None
-        for st in split_sql(sql):
-            t0 = time.time()
-            try:
-                c = pool.get(alias)
-                if cur_db is None:
-                    cur_db = c.db
-                elif c.db != cur_db:
-                    c.select_db(cur_db)
-                cur = c.cursor()
-                cur.execute(st)
+        try:
+            for st in split_sql(sql):
+                if qid and qid in cancelled:
+                    err = 'Consulta cancelada.'
+                    break
+                t0 = time.time()
+                for attempt in (0, 1):
+                    try:
+                        c = pool.get(alias)
+                        if cur_db is None:
+                            cur_db = c.db
+                        elif c.db != cur_db:
+                            c.select_db(cur_db)
+                        running[alias] = (qid, c.thread_id())
+                        cur = c.cursor()
+                        cur.execute(st)
+                        break
+                    except pymysql.MySQLError as e:
+                        if _gone(e):
+                            pool.drop(alias, 'main')
+                            if attempt == 0 and READ_RE.match(st):
+                                continue  # leitura: seguro repetir numa conexão nova
+                        raise
                 if cur.description:
                     cols = [d[0] for d in cur.description]
                     rows = cur.fetchmany(limit + 1)
@@ -283,39 +320,71 @@ def run_query(alias, db, sql, limit):
                     res = dict(sql=st, columns=cols, truncated=trunc,
                                rows=[[jv(v) for v in r] for r in rows[:limit]])
                     if trunc:
-                        pool.drop(alias)  # descarta o resto sem ler tudo
+                        pool.drop(alias, 'main')  # descarta o resto sem ler tudo
                     else:
                         cur.close()
                 else:
                     res = dict(sql=st, columns=[], rows=[], affected=cur.rowcount)
                     cur.close()
                 m = re.match(r'use\s+`?([^`\s]+)`?\s*$', st, re.I)
-                if m and alias in pool.conns:
-                    cur_db = pool.conns[alias].db = m.group(1)
+                if m and (alias, 'main') in pool.conns:
+                    cur_db = pool.conns[(alias, 'main')].db = m.group(1)
                 res['ms'] = int((time.time() - t0) * 1000)
+                if qid and qid in cancelled:  # ex.: SLEEP interrompido devolve 1 sem erro
+                    err = 'Consulta cancelada.'
+                    break
                 results.append(res)
-            except ApiError as e:
-                err = str(e)
-                return dict(results=results, error=err, db=cur_db, need_password=e.need_password)
-            except pymysql.MySQLError as e:
+        except ApiError as e:
+            return dict(results=results, error=str(e), db=cur_db, need_password=e.need_password)
+        except pymysql.MySQLError as e:
+            if e.args and e.args[0] == 1317:
+                err = 'Consulta cancelada.'
+            elif _gone(e):
+                pool.drop(alias, 'main')
+                err = ('Conexão com o servidor perdida. O comando não foi repetido automaticamente; '
+                       'confira o resultado antes de executar de novo.')
+            else:
                 err = emsg(e)
-                if not e.args or e.args[0] in (2006, 2013, 2055) or isinstance(e, pymysql.InterfaceError):
-                    pool.drop(alias)
-                break
+        finally:
+            running.pop(alias, None)
+            cancelled.pop(qid, None)
     return dict(results=results, error=err, db=cur_db)
 
 
-def simple(alias, db, sql, params=None):
-    with pool.lock(alias):
-        c = pool.get(alias)
-        if db and c.db != db:
-            c.select_db(db)
-        cur = c.cursor()
+def cancel_query(alias, qid):
+    """Cancela a consulta (KILL QUERY por outra conexão). Se ainda está na fila, ela aborta ao vez dela."""
+    cancelled[qid] = time.time()
+    if len(cancelled) > 200:
+        for k in sorted(cancelled, key=cancelled.get)[:100]:
+            cancelled.pop(k, None)
+    r = running.get(alias)
+    if r and r[0] == qid:
+        c = pool.connect(alias, read_timeout=10)
         try:
-            cur.execute(sql, params)
-            return cur.fetchall()
+            c.cursor().execute(f'KILL QUERY {int(r[1])}')
         finally:
-            cur.close()
+            c.close()
+
+
+def simple(alias, db, sql, params=None):
+    with pool.lock(alias, 'meta'):
+        for attempt in (0, 1):
+            try:
+                c = pool.get(alias, 'meta')
+                if db and c.db != db:
+                    c.select_db(db)
+                cur = c.cursor()
+                try:
+                    cur.execute(sql, params)
+                    return cur.fetchall()
+                finally:
+                    cur.close()
+            except pymysql.MySQLError as e:
+                if _gone(e):
+                    pool.drop(alias, 'meta')
+                    if attempt == 0:
+                        continue
+                raise
 
 
 def bq(name):
@@ -370,21 +439,29 @@ def api(path, d):
     if path == '/api/databases':
         rows = simple(alias, None, 'SHOW DATABASES')
         return dict(databases=sorted((r[0] for r in rows), key=str.lower),
-                    db=pool.conns[alias].db or '')
+                    db=pool.conns[(alias, 'meta')].db or '')
     if path == '/api/tables':
         rows = simple(alias, d.get('db'), 'SHOW FULL TABLES FROM ' + bq(d['db']))
         return dict(tables=[[r[0], r[1]] for r in rows])
     if path == '/api/columns':
+        tables = [t for t in (d.get('tables') or []) if isinstance(t, str)][:60]
+        if not tables:
+            return dict(columns={})
+        ph = ','.join(['%s'] * len(tables))
         rows = simple(alias, None,
                       'SELECT table_name, column_name, column_type, column_key '
                       'FROM information_schema.columns WHERE table_schema=%s '
-                      'ORDER BY table_name, ordinal_position LIMIT 80000', (d['db'],))
-        cols = {}
+                      f'AND table_name IN ({ph}) ORDER BY table_name, ordinal_position',
+                      (d['db'], *tables))
+        cols = {t: [] for t in tables}
         for t, c, ty, k in rows:
             cols.setdefault(jv(t), []).append([jv(c), jv(ty), jv(k)])
         return dict(columns=cols)
+    if path == '/api/cancel':
+        cancel_query(alias, d.get('qid'))
+        return {}
     if path == '/api/query':
-        return run_query(alias, d.get('db'), d.get('sql', ''), d.get('limit'))
+        return run_query(alias, d.get('db'), d.get('sql', ''), d.get('limit'), d.get('qid'))
     raise ApiError('rota desconhecida')
 
 
