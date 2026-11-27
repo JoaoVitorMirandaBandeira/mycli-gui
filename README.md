@@ -27,7 +27,9 @@ my
 
 Prefere o terminal? `my -a` faz a mesma pergunta por lá. O SSL é por conexão (caixa **Usar SSL**, ou `?ssl=true` no alias do `~/.myclirc`); desmarcado, o `my` roda o mycli com `--ssl-mode off`, que é o padrão para evitar o erro dos mycli novos com servidores sem SSL. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
 
-Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
+Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva as consultas no editor, separadas por ponto e vírgula. **Ctrl+Enter**, **F5** e o botão **Executar** rodam o trecho selecionado ou, sem seleção, a consulta sob o cursor. Use **Ctrl+Shift+Enter** para executar o script inteiro.
+
+Para recolher uma consulta de várias linhas, clique na seta ao lado do número da primeira linha. Clique na seta novamente ou nas reticências para expandir.
 
 Para alterar registros, abra uma tabela pela lista à esquerda ou execute um `SELECT *` de uma única tabela, inclusive com `WHERE`, `ORDER BY` e `LIMIT`. Dê um duplo clique na célula ou clique em **Editar dados** e escolha a célula. Digite o novo valor e pressione **Enter**. Use o botão **NULL** da célula para gravar um valor nulo. Quando terminar, clique em **Salvar** para aplicar todas as alterações ou em **Descartar** para desfazê-las antes de gravar.
 
