@@ -24,7 +24,7 @@ command -v google-chrome >/dev/null || command -v chromium >/dev/null \
 # 2) arquivos
 mkdir -p "$bin" "$share" "$HOME/.local/share/icons/hicolor/scalable/apps" "$HOME/.local/share/applications"
 install -m 755 "$here/bin/my" "$bin/my"
-install -m 644 "$here/my-gui/server.py" "$here/my-gui/index.html" "$here/my-gui/my-gui.svg" "$share/"
+install -m 644 "$here/my-gui/server.py" "$here/my-gui/index.html" "$here/my-gui/my-gui.svg" "$here/my-gui/VERSION" "$share/"
 install -m 644 "$here/my-gui/my-gui.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/my-gui.svg"
 # o nome do arquivo e o StartupWMClass são a classe que o Chrome dá às janelas --app=http://127.0.0.1:...
 rm -f "$HOME/.local/share/applications/my-gui.desktop"
