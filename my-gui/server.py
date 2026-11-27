@@ -488,8 +488,15 @@ def open_window(url):
               'brave-browser', 'microsoft-edge'):
         exe = shutil.which(b)
         if exe:
-            subprocess.Popen([exe, f'--app={url}', '--window-size=1400,880', '--no-first-run'],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            # Perfil próprio: o app_id da janela no Wayland inclui o nome do perfil
+            # (chrome-127.0.0.1__-<perfil>); com perfil dedicado ele é sempre "Default" e
+            # casa com o atalho do menu (ícone no dock). Também isola das suas extensões.
+            prof = os.path.join(CONF_DIR, 'chrome')
+            args = [exe, f'--user-data-dir={prof}', f'--app={url}', '--no-first-run',
+                    '--no-default-browser-check', '--password-store=basic']
+            if not os.path.isdir(os.path.join(prof, 'Default')):
+                args.append('--window-size=1400,880')  # 1ª vez; depois o Chrome lembra o tamanho
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
             return
     webbrowser.open(url)

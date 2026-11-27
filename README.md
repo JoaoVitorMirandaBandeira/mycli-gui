@@ -45,6 +45,8 @@ Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: 
 | Nova / editar conexão | **＋** e **✎** na janela (ou `my -a`) |
 | Listar conexões | `my -l` |
 
+A janela usa um perfil do Chrome só dela (`~/.config/my-gui/chrome`), isolado das suas extensões e logins; é isso que faz o ícone aparecer certo no dock.
+
 As conexões ficam no `~/.myclirc` (permissão 600). As senhas nunca vão para a página, e o servidor só aceita conexões da própria máquina (`127.0.0.1`).
 
 ## Problemas comuns
