@@ -516,6 +516,38 @@ def save_table(alias, db, table, changes):
     return dict(saved=saved)
 
 
+def foreign_keys(alias, db, tables):
+    """FKs (saindo) das tabelas pedidas, numa só consulta. O filtro é por constantes
+    (sem BINARY nas colunas) para o MySQL poder usar os índices do information_schema."""
+    tables = [t for t in (tables or []) if isinstance(t, str)][:60]
+    if not isinstance(db, str) or not db or not tables:
+        return {}
+    ph = ','.join(['%s'] * len(tables))
+    rows = simple(alias, None,
+                  'SELECT k.table_name, k.constraint_name, k.column_name, k.referenced_table_schema, '
+                  'k.referenced_table_name, k.referenced_column_name, r.delete_rule, r.update_rule '
+                  'FROM information_schema.key_column_usage k '
+                  'JOIN information_schema.referential_constraints r '
+                  'ON r.constraint_schema=k.constraint_schema AND r.constraint_name=k.constraint_name '
+                  'AND r.table_name=k.table_name '
+                  f'WHERE k.table_schema=%s AND k.table_name IN ({ph}) '
+                  'AND k.referenced_table_name IS NOT NULL '
+                  'ORDER BY k.table_name, k.constraint_name, k.ordinal_position',
+                  (db, *tables))
+    out = {t: [] for t in tables}
+    by_name = {}
+    for t, name, col, rdb, rtable, rcol, dele, upd in rows:
+        t, name = jv(t), jv(name)
+        fk = by_name.get((t, name))
+        if fk is None:
+            fk = by_name[(t, name)] = dict(name=name, cols=[], rdb=jv(rdb), rtable=jv(rtable), rcols=[],
+                                            on_delete=jv(dele), on_update=jv(upd))
+            out.setdefault(t, []).append(fk)
+        fk['cols'].append(jv(col))
+        fk['rcols'].append(jv(rcol))
+    return out
+
+
 def api(path, d):
     if path == '/api/ping':
         return {}
@@ -582,6 +614,8 @@ def api(path, d):
         for t, c, ty, k in rows:
             cols.setdefault(jv(t), []).append([jv(c), jv(ty), jv(k)])
         return dict(columns=cols)
+    if path == '/api/fks':
+        return dict(fks=foreign_keys(alias, d.get('db'), d.get('tables')))
     if path == '/api/cancel':
         cancel_query(alias, d.get('qid'))
         return {}

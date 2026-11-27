@@ -33,6 +33,14 @@ Para alterar registros, abra uma tabela pela lista à esquerda e clique em **Edi
 
 A edição direta fica disponível para tabelas InnoDB com chave primária visível e colunas compatíveis. Chaves primárias, colunas geradas e resultados de SQL escrito no editor são somente leitura. Se um registro tiver mudado desde a consulta, o MySQL desfaz o lote e a interface pede para recarregar a tabela.
 
+### Chaves estrangeiras
+
+Ao abrir uma tabela pela lista à esquerda, as colunas que são chave estrangeira (FK) ganham o selo **FK** no cabeçalho (passe o mouse para ver a coluna referenciada e as regras `ON DELETE`/`ON UPDATE`). Passe o mouse sobre o valor de uma FK e clique no **↗** que aparece: o registro referenciado abre na própria aba (`SELECT * FROM tabela_ref WHERE chave = valor`). **Ctrl+clique** no ↗ abre em uma nova aba.
+
+Para voltar ao resultado de onde você veio (com a posição da rolagem e a linha selecionada), use o botão **← Voltar** no topo do resultado ou **Alt+←**; dá para encadear vários saltos e voltar um por um. Valores `NULL` não têm ↗. Funciona também no modo **Vertical** e no painel do registro. As FKs de cada tabela são buscadas sob demanda, numa única consulta leve ao `information_schema`, e ficam em cache até você recarregar (**⟳**) ou alterar tabelas.
+
+Se você tiver alterações pendentes de edição, o salto pede confirmação antes de descartá-las.
+
 ## O que fica salvo
 
 Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: **conexão e banco de cada conexão, abas, SQL escrito e histórico**. Fica em `~/.config/my-gui/state.json` (permissão 600, gravação atômica com `fsync` e cópia `.bak`).
