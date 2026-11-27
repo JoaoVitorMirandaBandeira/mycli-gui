@@ -330,7 +330,7 @@ async function run(){
   const source=t.table;
   const table=source?.sql===sql&&source.alias===S.alias&&source.db===S.db?source.name:undefined;
   const nx=t.fkNext;t.fkNext=null;
-  const fkSrc=table?{alias:S.alias,db:S.db,table}:nx&&nx.sql===sql&&nx.alias===S.alias?nx:null;
+  const fkSrc=table?{alias:S.alias,db:S.db,table}:nx&&nx.sql===sql&&nx.alias===S.alias?nx:simpleSelect(sql);
   t.running=true;t.error=null;t.qid=Math.random().toString(36).slice(2);t.t0=Date.now();t.qalias=S.alias;
   if(t===cur())renderRes();
   if(!t.pinned)t.title=sql.replace(/\s+/g,' ').trim().slice(0,28)||t.title;
@@ -456,6 +456,15 @@ function fkMap(r,list){
     const o={...f,idx};idx.forEach(j=>{if(!m.has(j))m.set(j,o)});
   }
   return m;
+}
+/* SELECT simples de uma única tabela (sem JOIN, vírgula, função, alias de coluna ou GROUP BY):
+   as colunas do resultado são colunas reais da tabela, então dá para ligar as FKs pelo nome. */
+function simpleSelect(sql){
+  const id='(?:`[^`]+`|[\\w$]+)',un=x=>x.replace(/`/g,''),clean=sql.replace(NOISE,' ').trim();
+  const m=new RegExp(`^select\\s+(?:distinct\\s+)?([^()]+?)\\s+from\\s+(${id})(?:\\s*\\.\\s*(${id}))?\\s*(?:(where|order\\s+by|limit)\\b[\\s\\S]*)?;?$`,'i')
+    .exec(clean);
+  if(!m||/\bas\b/i.test(m[1])||clean.replace(/;\s*$/,'').includes(';')||/\b(join|union|group)\b/i.test(clean))return null;
+  return{alias:S.alias,db:m[3]?un(m[2]):S.db,table:un(m[3]||m[2])};
 }
 function attachFks(t,r,src){   // só a tabela deste resultado; 1 consulta, em cache até invalidate()
   r.fkSrc=src;
