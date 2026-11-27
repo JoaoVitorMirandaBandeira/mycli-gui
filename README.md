@@ -29,6 +29,10 @@ Prefere o terminal? `my -a` faz a mesma pergunta por lá. Quer trazer as do DBea
 
 Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
 
+Para alterar registros, abra uma tabela pela lista à esquerda e clique em **Editar dados**. Clique na célula, digite o novo valor e pressione **Enter**. Use o botão **NULL** da célula para gravar um valor nulo. Quando terminar, clique em **Salvar** para aplicar todas as alterações ou em **Descartar** para desfazê-las antes de gravar.
+
+A edição direta fica disponível para tabelas InnoDB com chave primária visível e colunas compatíveis. Chaves primárias, colunas geradas e resultados de SQL escrito no editor são somente leitura. Se um registro tiver mudado desde a consulta, o MySQL desfaz o lote e a interface pede para recarregar a tabela.
+
 ## O que fica salvo
 
 Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: **conexão e banco de cada conexão, abas, SQL escrito e histórico**. Fica em `~/.config/my-gui/state.json` (permissão 600, gravação atômica com `fsync` e cópia `.bak`).

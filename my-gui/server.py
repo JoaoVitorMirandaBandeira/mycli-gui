@@ -156,8 +156,8 @@ def alias_args(d):
 
 # ------------------------------------------------------------------- pool ---
 class Pool:
-    """Duas conexões por alias: 'main' (consultas do usuário) e 'meta' (bancos/tabelas/colunas),
-    para a árvore e o autocomplete não ficarem presos atrás de uma consulta longa.
+    """Conexões por alias: 'main' (consultas do usuário), 'meta' (árvore e autocomplete)
+    e 'browse' (leitura de tabelas sem o estado da sessão do editor).
     Não há ping a cada comando (custa uma ida e volta): só se a conexão ficou parada
     mais de IDLE_PING segundos; o resto é tratado reconectando quando der erro."""
     IDLE_PING = 120
@@ -171,7 +171,7 @@ class Pool:
             return self.locks.setdefault((alias, kind), threading.RLock())
 
     def drop(self, alias, kind=None):
-        for k in ((kind,) if kind else ('main', 'meta')):
+        for k in ((kind,) if kind else ('main', 'meta', 'browse')):
             c = self.conns.pop((alias, k), None)
             if c is not None:
                 try:
@@ -285,9 +285,10 @@ def _gone(e):
     return (bool(e.args) and e.args[0] in (2006, 2013, 2055)) or isinstance(e, pymysql.InterfaceError)
 
 
-def run_query(alias, db, sql, limit, qid=None):
+def run_query(alias, db, sql, limit, qid=None, edit_scope=None):
     limit = max(1, min(int(limit or 1000), 20000))
     results, err = [], None
+    kind = 'browse' if edit_scope else 'main'
     with pool.lock(alias):
         cur_db = db or None
         try:
@@ -298,9 +299,9 @@ def run_query(alias, db, sql, limit, qid=None):
                 t0 = time.time()
                 for attempt in (0, 1):
                     try:
-                        c = pool.get(alias)
+                        c = pool.get(alias, kind)
                         if cur_db is None:
-                            cur_db = c.db
+                            cur_db = jv(c.db)
                         elif c.db != cur_db:
                             c.select_db(cur_db)
                         running[alias] = (qid, c.thread_id())
@@ -309,7 +310,7 @@ def run_query(alias, db, sql, limit, qid=None):
                         break
                     except pymysql.MySQLError as e:
                         if _gone(e):
-                            pool.drop(alias, 'main')
+                            pool.drop(alias, kind)
                             if attempt == 0 and READ_RE.match(st):
                                 continue  # leitura: seguro repetir numa conexão nova
                         raise
@@ -319,8 +320,10 @@ def run_query(alias, db, sql, limit, qid=None):
                     trunc = len(rows) > limit
                     res = dict(sql=st, columns=cols, truncated=trunc,
                                rows=[[jv(v) for v in r] for r in rows[:limit]])
+                    if edit_scope:
+                        res['versions'] = [row_version(edit_scope, cols, r) for r in rows[:limit]]
                     if trunc:
-                        pool.drop(alias, 'main')  # descarta o resto sem ler tudo
+                        pool.drop(alias, kind)  # descarta o resto sem ler tudo
                     else:
                         cur.close()
                 else:
@@ -340,7 +343,7 @@ def run_query(alias, db, sql, limit, qid=None):
             if e.args and e.args[0] == 1317:
                 err = 'Consulta cancelada.'
             elif _gone(e):
-                pool.drop(alias, 'main')
+                pool.drop(alias, kind)
                 err = ('Conexão com o servidor perdida. O comando não foi repetido automaticamente; '
                        'confira o resultado antes de executar de novo.')
             else:
@@ -391,6 +394,128 @@ def bq(name):
     return '`' + name.replace('`', '``') + '`'
 
 
+# ----------------------------------------------------------- editar tabela ---
+INTEGER_TYPES = {'tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'year'}
+KEY_TYPES = INTEGER_TYPES | {'decimal', 'char', 'varchar', 'date', 'datetime', 'timestamp'}
+EDIT_TYPES = KEY_TYPES | {'float', 'double', 'time', 'enum', 'set', 'json',
+                          'tinytext', 'text', 'mediumtext', 'longtext'}
+
+
+def table_scope(alias, db, table):
+    return alias, db, table, load_aliases().get(alias)
+
+
+def row_version(scope, columns, row):
+    return hmac.digest(TOKEN.encode(), repr((scope, columns, row)).encode(), 'sha256').hex()
+
+
+def edit_columns(read, db, table, columns):
+    rows = read(
+        'SELECT c.column_name, c.data_type, k.column_name, c.extra '
+        'FROM information_schema.columns c JOIN information_schema.tables t '
+        'ON BINARY c.table_schema=BINARY t.table_schema AND BINARY c.table_name=BINARY t.table_name '
+        'LEFT JOIN information_schema.key_column_usage k '
+        'ON BINARY c.table_schema=BINARY k.table_schema AND BINARY c.table_name=BINARY k.table_name '
+        "AND c.column_name=k.column_name AND k.constraint_name='PRIMARY' "
+        'WHERE BINARY c.table_schema=%s AND BINARY c.table_name=%s '
+        "AND t.table_type='BASE TABLE' AND t.engine='InnoDB'", (db, table))
+    keys = {name: ty for name, ty, key, _ in rows if key is not None}
+    if not keys or any(name not in columns or ty not in KEY_TYPES for name, ty in keys.items()):
+        return {}, []
+    editable = {name for name, ty, _, extra in rows
+                if name not in keys and ty in EDIT_TYPES
+                and not any(flag in extra.upper() for flag in ('VIRTUAL GENERATED', 'STORED GENERATED'))}
+    return keys, [i for i, name in enumerate(columns) if name in editable]
+
+
+def browse_table(alias, db, table, sql, limit, qid):
+    # Só a consulta gerada pela árvore recebe metadados de edição.
+    scope = table_scope(alias, db, table)
+    r = run_query(alias, db, sql, limit, qid, edit_scope=scope)
+    if r['results']:
+        result = r['results'][0]
+        versions = result.pop('versions', [])
+        try:
+            keys, editable = edit_columns(lambda q, p: simple(alias, None, q, p),
+                                          db, table, result['columns'])
+        except (ApiError, pymysql.MySQLError):
+            keys, editable = {}, []
+        if editable and versions:
+            result['edit'] = dict(alias=alias, db=db, table=table, versions=versions,
+                                  keys=[i for i, name in enumerate(result['columns']) if name in keys],
+                                  columns=editable)
+    return r
+
+
+def save_table(alias, db, table, changes):
+    if not all(isinstance(s, str) and s for s in (alias, db, table)):
+        raise ApiError('Tabela inválida')
+    if not isinstance(changes, list) or not 1 <= len(changes) <= 200:
+        raise ApiError('Alterações inválidas')
+    scope = table_scope(alias, db, table)
+    target = bq(db) + '.' + bq(table)
+    # PyMySQL usa formatação com %, inclusive em identificadores quando há parâmetros.
+    target_params = target.replace('%', '%%')
+    with pool.connect(alias) as c:
+        c.begin()
+        try:
+            with c.cursor(pymysql.cursors.Cursor) as cur:
+                def read(sql, params=None):
+                    cur.execute(sql, params)
+                    return cur.fetchall()
+
+                # Mantém o schema estável até o fim da transação.
+                read(f'SELECT * FROM {target} LIMIT 0')
+                columns = [d[0] for d in cur.description]
+                keys, editable = edit_columns(read, db, table, columns)
+                if not editable:
+                    raise ApiError('Esta tabela não permite edição direta')
+                editable = {str(i) for i in editable}
+                key_names = [name for name in columns if name in keys]
+                where = ' AND '.join(bq(name).replace('%', '%%') + '=%s' for name in key_names)
+                select = f'SELECT * FROM {target_params} WHERE {where} FOR UPDATE'
+                saved = []
+                for change in changes:
+                    if not isinstance(change, dict):
+                        raise ApiError('Alteração inválida')
+                    key = change.get('key')
+                    values = change.get('values')
+                    version = change.get('version')
+                    if (not isinstance(key, list) or len(key) != len(keys)
+                            or not all(type(v) in (str, int) for v in key)
+                            or not isinstance(values, dict) or not values
+                            or not all(i in editable
+                                       and (v is None or isinstance(v, str)) for i, v in values.items())
+                            or not isinstance(version, str) or not re.fullmatch('[0-9a-f]{64}', version)):
+                        raise ApiError('Alteração inválida')
+                    try:
+                        params = tuple(int(v) if keys[name] in INTEGER_TYPES
+                                       else decimal.Decimal(v) if keys[name] == 'decimal' else v
+                                       for name, v in zip(key_names, key))
+                    except (ValueError, decimal.InvalidOperation):
+                        raise ApiError('Chave primária inválida') from None
+                    rows = read(select, params)
+                    if len(rows) != 1 or not hmac.compare_digest(version, row_version(scope, columns, rows[0])):
+                        raise ApiError('Um registro mudou ou foi excluído. Recarregue a tabela antes de editar novamente.')
+                    assignments = ', '.join(bq(columns[int(i)]).replace('%', '%%') + '=%s' for i in values)
+                    cur.execute(f'UPDATE {target_params} SET {assignments} WHERE {where}',
+                                (*values.values(), *params))
+                    warnings = read('SHOW WARNINGS')
+                    if warnings:
+                        raise ApiError(f'{warnings[0][1]}: {warnings[0][2]}')
+                    rows = read(select, params)
+                    if len(rows) != 1:
+                        raise ApiError('A chave primária mudou durante a atualização')
+                    saved.append(dict(row=[jv(v) for v in rows[0]],
+                                      version=row_version(scope, columns, rows[0])))
+            c.commit()
+        except Exception:
+            if c.open:
+                c.rollback()
+            raise
+    return dict(saved=saved)
+
+
 def api(path, d):
     if path == '/api/ping':
         return {}
@@ -439,7 +564,7 @@ def api(path, d):
     if path == '/api/databases':
         rows = simple(alias, None, 'SHOW DATABASES')
         return dict(databases=sorted((r[0] for r in rows), key=str.lower),
-                    db=pool.conns[(alias, 'meta')].db or '')
+                    db=jv(pool.conns[(alias, 'meta')].db) or '')
     if path == '/api/tables':
         rows = simple(alias, d.get('db'), 'SHOW FULL TABLES FROM ' + bq(d['db']))
         return dict(tables=[[r[0], r[1]] for r in rows])
@@ -461,7 +586,14 @@ def api(path, d):
         cancel_query(alias, d.get('qid'))
         return {}
     if path == '/api/query':
-        return run_query(alias, d.get('db'), d.get('sql', ''), d.get('limit'), d.get('qid'))
+        db, sql, limit, qid = d.get('db'), d.get('sql', ''), d.get('limit'), d.get('qid')
+        table = d.get('table')
+        if db and isinstance(table, str) and sql == f'SELECT * FROM {bq(table)} LIMIT 200;':
+            # A leitura usa outra sessão para ignorar tabelas temporárias do editor.
+            return browse_table(alias, db, table, sql, limit, qid)
+        return run_query(alias, db, sql, limit, qid)
+    if path == '/api/table/save':
+        return save_table(alias, d.get('db'), d.get('table'), d.get('changes'))
     raise ApiError('rota desconhecida')
 
 
