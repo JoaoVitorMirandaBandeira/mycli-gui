@@ -48,7 +48,11 @@ aside{background:var(--bg2);display:flex;flex-direction:column;min-height:0}
 .tab:hover{background:var(--bg3)}
 .tab.on{background:var(--bg);color:var(--fg);box-shadow:inset 0 2px 0 var(--acc)}
 .tab b{font-weight:400;opacity:.5}.tab b:hover{opacity:1;color:var(--err)}
-#ed{position:relative;height:150px;min-height:56px;resize:vertical;overflow:hidden;border-bottom:1px solid var(--line);background:var(--bg);flex:none}
+#ed{position:relative;height:150px;min-height:56px;overflow:hidden;background:var(--bg);flex:none}
+#split{flex:none;height:7px;margin:-3px 0;position:relative;z-index:5;cursor:row-resize;touch-action:none}
+#split::after{content:"";position:absolute;left:0;right:0;top:3px;height:1px;background:var(--line);transition:background .12s,height .12s,top .12s}
+#split:hover::after,#split.drag::after{background:var(--acc);height:3px;top:2px}
+body.resizing{cursor:row-resize;user-select:none}
 #ed:focus-within{box-shadow:inset 0 0 0 2px var(--acc)}
 #hlight,#sql{position:absolute;inset:0;margin:0;padding:10px 14px;border:0;border-radius:0;font:13px/1.5 ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;white-space:pre;tab-size:2;overflow:auto;letter-spacing:0;font-variant-ligatures:none;font-kerning:none}
 #hlight{overflow:hidden;pointer-events:none;color:var(--fg)}
@@ -162,6 +166,7 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
   <section id="work">
     <div id="tabs"></div>
     <div id="ed"><pre id="hlight" aria-hidden="true"></pre><textarea id="sql" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="SELECT * FROM tabela LIMIT 100;   — Ctrl+Enter executa tudo (ou só a seleção) · Ctrl+Espaço sugere"></textarea></div>
+    <div id="split" title="Arraste para redimensionar"></div>
     <div id="res"></div>
   </section>
   <aside id="rec"></aside>
@@ -972,6 +977,15 @@ $('#upd').addEventListener('click',async()=>{
   await setAlias(a,S.lastDb[a]);
   $('#sql').focus();
 })();
+
+(()=>{const sp=$('#split'),ed=$('#ed');
+try{const h=+localStorage.getItem('edH');if(h>=56)ed.style.height=h+'px'}catch(_){}
+sp.addEventListener('pointerdown',e=>{e.preventDefault();sp.setPointerCapture(e.pointerId);sp.classList.add('drag');document.body.classList.add('resizing');
+const y0=e.clientY,h0=ed.offsetHeight;
+const mv=ev=>{const max=$('#work').clientHeight-$('#tabs').offsetHeight-80;ed.style.height=Math.max(56,Math.min(max,h0+ev.clientY-y0))+'px'};
+const up=()=>{sp.classList.remove('drag');document.body.classList.remove('resizing');sp.removeEventListener('pointermove',mv);sp.removeEventListener('pointerup',up);sp.removeEventListener('pointercancel',up);try{localStorage.setItem('edH',ed.offsetHeight)}catch(_){}};
+sp.addEventListener('pointermove',mv);sp.addEventListener('pointerup',up);sp.addEventListener('pointercancel',up)});
+sp.addEventListener('dblclick',()=>{ed.style.height='150px';try{localStorage.removeItem('edH')}catch(_){}})})();
 </script>
 </body>
 </html>
