@@ -93,6 +93,7 @@ table.g td.fk:hover .fkgo,.kv tr:hover td.fk .fkgo,.fkgo:focus-visible{visibilit
 .fkb{font-size:10px;font-weight:700;color:var(--acc);border:1px solid var(--acc);border-radius:3px;padding:0 3px;margin-left:6px;vertical-align:1px}
 .crumb{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
 table.g td.changed{box-shadow:inset 3px 0 var(--warn)}
+table.g td.can-edit{cursor:text}
 .cell-value{display:block;width:100%;border:0;border-radius:0;background:transparent;color:inherit;padding:0;text-align:inherit;overflow:hidden;text-overflow:ellipsis}
 .cell-value:hover{text-decoration:underline;text-decoration-color:var(--acc)}
 .cell-editor{display:flex;gap:4px;align-items:center}
@@ -443,10 +444,12 @@ addEventListener('beforeunload',e=>{
   if(S.tabs.some(t=>t.results.some(r=>r.drafts?.size))){e.preventDefault();e.returnValue=''}
 });
 function editActions(r){
-  if(!r.edit)return '';
+  if(!r.edit)return r.edit_reason?`<button data-a="edit-info" title="${esc(r.edit_reason)}">Somente leitura</button>`:'';
   if(!r.drafts)return '<button data-a="edit"'+(r.vert?' disabled':'')+'>Editar dados</button>';
   const target=esc(r.edit.alias+' · '+r.edit.db+'.'+r.edit.table);
-  return `<button class="pri" data-a="save" title="Gravar em ${target}" ${!r.drafts.size||r.saving?'disabled':''}>${r.saving?'Salvando…':'Salvar'}</button>
+  const disabled=!r.drafts.size||r.saving?'disabled':'';
+  return `<button class="pri" data-a="save" title="Gravar em ${target}" ${disabled}>${r.saving?'Salvando…':'Salvar'}</button>
+    <button data-a="copy-update" ${disabled}>Copiar UPDATE</button>
     <button data-a="discard" ${r.saving?'disabled':''}>${r.drafts.size?'Descartar':'Sair da edição'}</button>`;
 }
 /* ---------- chaves estrangeiras ---------- */
@@ -514,12 +517,22 @@ function goBack(){
 const shownValue=(r,i,j)=>r.drafts?.get(i)?.has(j)?r.drafts.get(i).get(j):r.rows[i][j];
 function cellHtml(r,i,j){
   const v=shownValue(r,i,j),changed=r.drafts?.get(i)?.has(j);
-  const style=[v===null?'nul':typeof v==='number'?'num':'',changed?'changed':''].filter(Boolean).join(' ');
+  const canEdit=r.edit?.columns.includes(j)&&!r.saving;
+  const style=[v===null?'nul':typeof v==='number'?'num':'',changed?'changed':'',canEdit?'can-edit':''].filter(Boolean).join(' ');
   const label=v===null?'NULL':esc(v);
-  const editable=r.drafts&&!r.saving&&r.edit.columns.includes(j);
+  const editable=r.drafts&&canEdit;
   const f=v!==null&&r.fkmap?.get(j);
-  return `<td class="${[style,f?'fk':''].filter(Boolean).join(' ')}" data-col="${j}">${f?fkBtn(f,j):''}${editable?`<button type="button" class="cell-value"
+  return `<td class="${[style,f?'fk':''].filter(Boolean).join(' ')}" data-col="${j}"${canEdit&&!editable?' title="Duplo clique para editar"':''}>${f?fkBtn(f,j):''}${editable?`<button type="button" class="cell-value"
     title="Editar ${esc(r.columns[j])}" aria-label="Editar ${esc(r.columns[j])}, linha ${i+1}">${label||'&nbsp;'}</button>`:label}</td>`;
+}
+function beginEdits(b,r){
+  r.drafts=new Map();
+  hideRec();
+  b.querySelector('.edit-actions').innerHTML=editActions(r);
+  for(const td of b.querySelectorAll('tr[data-r] td[data-col]')){
+    const j=+td.dataset.col;
+    if(r.edit.columns.includes(j))td.outerHTML=cellHtml(r,+td.closest('tr').dataset.r,j);
+  }
 }
 function startCell(td,b,r){
   const i=+td.closest('tr').dataset.r,j=+td.dataset.col;
@@ -556,15 +569,29 @@ function startCell(td,b,r){
   });
   input.focus();input.select();
 }
-async function saveEdits(r){
-  if(r.saving||!r.drafts?.size)return;
-  const t=cur(),{alias,db,table,keys,versions}=r.edit;
-  const entries=[...r.drafts].sort(([a],[b])=>a-b);
+function editRequest(r,entries){
+  const {alias,db,table,keys,versions}=r.edit;
   const changes=entries.map(([i,values])=>({
     key:keys.map(j=>r.rows[i][j]),version:versions[i],values:Object.fromEntries(values)
   }));
+  return {alias,db,table,changes,columns:r.columns};
+}
+async function copyUpdate(r){
+  if(r.saving||!r.drafts?.size)return;
+  const t=cur();
+  const entries=[...r.drafts].sort(([a],[b])=>a-b);
+  const response=await apiPw('/api/table/preview',editRequest(r,entries));
+  if(response.error){
+    r.editError=response.error;
+    if(t===cur()&&t.results.includes(r))renderRes();
+  }else copy(response.sql);
+}
+async function saveEdits(r){
+  if(r.saving||!r.drafts?.size)return;
+  const t=cur(),{versions}=r.edit;
+  const entries=[...r.drafts].sort(([a],[b])=>a-b);
   r.saving=true;r.editError=null;renderRes();
-  const response=await apiPw('/api/table/save',{alias,db,table,changes});
+  const response=await apiPw('/api/table/save',editRequest(r,entries));
   r.saving=false;
   if(response.error)r.editError=response.error;
   else{
@@ -587,8 +614,10 @@ $('#res').addEventListener('click',e=>{
   const a=e.target.closest('[data-a]');
   if(a){
     switch(a.dataset.a){
-      case 'edit':r.drafts=new Map();hideRec();renderRes();break;
+      case 'edit-info':alert(r.edit_reason);break;
+      case 'edit':beginEdits(b,r);break;
       case 'save':saveEdits(r);break;
+      case 'copy-update':copyUpdate(r);break;
       case 'discard':
         if(!r.drafts.size||confirm('Descartar as alterações pendentes?')){
           r.drafts=null;r.editError=null;renderRes();
@@ -604,12 +633,25 @@ $('#res').addEventListener('click',e=>{
   const th=e.target.closest('th[data-j]');
   if(th){const j=+th.dataset.j;r.sort=!r.sort||r.sort.j!==j?{j,d:1}:(r.sort.d>0?{j,d:-1}:null);regrid(b,r);return}
   const tr=e.target.closest('tr[data-r]');
-  if(tr){r.sel=+tr.dataset.r;b.querySelectorAll('tr.sel').forEach(x=>x.classList.remove('sel'));tr.classList.add('sel');showRec(r,r.sel);return}
+  if(tr){
+    const col=+e.target.closest('td')?.dataset.col;
+    if(r.edit?.columns.includes(col)&&!r.saving)return; // evita abrir o painel entre os cliques
+    r.sel=+tr.dataset.r;b.querySelectorAll('tr.sel').forEach(x=>x.classList.remove('sel'));tr.classList.add('sel');showRec(r,r.sel);return
+  }
   const c=e.target.closest('.kv td');if(c)copy(cellText(c));
 });
 $('#res').addEventListener('dblclick',e=>{
   const td=e.target.closest('table.g tbody tr[data-r] td:not(.rn)');
-  if(td&&!e.target.closest('.cell-editor')&&!td.querySelector('.cell-value'))copy(td.classList.contains('nul')?'':cellText(td));
+  if(!td||e.target.closest('.cell-editor')||td.querySelector('.cell-value'))return;
+  const [b,r]=resOf(td),j=+td.dataset.col;
+  if(r?.edit?.columns.includes(j)&&!r.saving&&!r.drafts){
+    e.preventDefault();
+    const i=td.closest('tr').dataset.r;
+    beginEdits(b,r);
+    startCell(b.querySelector(`tr[data-r="${i}"] td[data-col="${j}"]`),b,r);
+    return;
+  }
+  copy(td.classList.contains('nul')?'':cellText(td));
 });
 $('#res').addEventListener('input',e=>{
   if(!e.target.matches('.f'))return;
