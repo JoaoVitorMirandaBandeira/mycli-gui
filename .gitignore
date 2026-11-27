@@ -3,3 +3,5 @@ __pycache__/
 .myclirc
 *.bak
 .DS_Store
+
+/tools/sql-editor/node_modules/

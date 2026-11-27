@@ -27,7 +27,15 @@ my
 
 Prefere o terminal? `my -a` faz a mesma pergunta por lá. O SSL é por conexão (caixa **Usar SSL**, ou `?ssl=true` no alias do `~/.myclirc`); desmarcado, o `my` roda o mycli com `--ssl-mode off`, que é o padrão para evitar o erro dos mycli novos com servidores sem SSL. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
 
-Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
+Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva as consultas no editor, separadas por ponto e vírgula. **Ctrl+Enter**, **F5** e o botão **Executar** rodam o trecho selecionado ou, sem seleção, a consulta sob o cursor. Use **Ctrl+Shift+Enter** para executar o script inteiro.
+
+Em linhas vazias ou de comentário entre consultas, o editor usa a consulta anterior. Se o cursor estiver antes de todas elas, usa a primeira.
+
+Para recolher uma consulta de várias linhas, clique na seta ao lado do número da primeira linha. Clique na seta novamente ou nas reticências para expandir.
+
+Em scripts acima de 300 mil caracteres, o recolhimento e o autocomplete ficam indisponíveis para manter a digitação responsiva. Os atalhos de execução continuam disponíveis.
+
+Ao criar procedures, funções, triggers ou eventos, declare um delimitador como `DELIMITER $$` em uma linha própria. Termine a definição com `$$` e use `DELIMITER ;` para voltar ao padrão. O mesmo vale para blocos `BEGIN NOT ATOMIC` do MariaDB. Assim, os pontos e vírgulas do corpo fazem parte da definição.
 
 Para alterar registros, abra uma tabela pela lista à esquerda ou execute um `SELECT *` de uma única tabela, inclusive com `WHERE`, `ORDER BY` e `LIMIT`. Dê um duplo clique na célula ou clique em **Editar dados** e escolha a célula. Digite o novo valor e pressione **Enter**. Use o botão **NULL** da célula para gravar um valor nulo. Quando terminar, clique em **Salvar** para aplicar todas as alterações ou em **Descartar** para desfazê-las antes de gravar.
 
@@ -63,11 +71,18 @@ A janela mostra a versão instalada (`v1.0.0`, no topo à direita) e, quando há
 
 O script cria a tag `v1.1.0` e a release com `my-gui-1.1.0.tar.gz` e o `.sha256`; em até 6 horas (ou ao reabrir o app) os usuários veem o aviso. O `VERSION` precisa ser maior que o da release anterior, e o app ignora releases sem esses dois arquivos.
 
+### Desenvolver o editor SQL
+
+O bundle do editor fica em `my-gui/index.html` para que o aplicativo funcione offline e seja compatível com o atualizador. Depois de alterar suas dependências ou exports, rode `npm ci --prefix tools/sql-editor` e `npm run build --prefix tools/sql-editor`. Confira o bundle com `npm run check --prefix tools/sql-editor`.
+
+Os testes do parser rodam com `node --test tests/sql-editor.test.cjs` e `python3 -m unittest discover -s tests`.
+
 ## Dicas
 
 | Quero | Como |
 |---|---|
 | Ver um registro "em pé" (como `\G`) | botão **Vertical** no resultado |
+| Copiar o valor de uma célula | **Ctrl+clique** na célula do resultado |
 | Sugestões de tabela/coluna | digite; ou **Ctrl+Espaço** |
 | Executar só um trecho | selecione e **Ctrl+Enter** |
 | Histórico de consultas | **Alt+H** |
