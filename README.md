@@ -35,6 +35,14 @@ A edição direta fica disponível para tabelas InnoDB com chave primária visí
 
 Para levar o SQL das alterações pendentes para outro editor, clique em **Copiar UPDATE**. Cada comando inclui o banco, a tabela e a chave primária original da linha.
 
+### Chaves estrangeiras
+
+Ao abrir uma tabela pela lista à esquerda — ou ao executar um `SELECT` simples de uma só tabela (sem `JOIN`, `GROUP BY`, funções ou `AS`) — as colunas que são chave estrangeira (FK) ganham o selo **FK** no cabeçalho (passe o mouse para ver a coluna referenciada e as regras `ON DELETE`/`ON UPDATE`). Passe o mouse sobre o valor de uma FK e clique no **↗** que aparece: o registro referenciado abre na própria aba (`SELECT * FROM tabela_ref WHERE chave = valor`). **Ctrl+clique** no ↗ abre em uma nova aba.
+
+Para voltar ao resultado de onde você veio (com a posição da rolagem e a linha selecionada), use o botão **← Voltar** no topo do resultado ou **Alt+←**; dá para encadear vários saltos e voltar um por um. Valores `NULL` não têm ↗. Funciona também no modo **Vertical** e no painel do registro. As FKs de cada tabela são buscadas sob demanda, numa única consulta leve ao `information_schema`, e ficam em cache até você recarregar (**⟳**) ou alterar tabelas.
+
+Se você tiver alterações pendentes de edição, o salto pede confirmação antes de descartá-las.
+
 ## O que fica salvo
 
 Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: **conexão e banco de cada conexão, abas, SQL escrito e histórico**. Fica em `~/.config/my-gui/state.json` (permissão 600, gravação atômica com `fsync` e cópia `.bak`).

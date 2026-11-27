@@ -75,7 +75,7 @@ aside{background:var(--bg2);display:flex;flex-direction:column;min-height:0}
 .bh .meta{white-space:nowrap;font-size:12.5px;color:var(--mut)}
 .bh .meta b{color:var(--warn)}
 .bh .f{width:170px;padding:3px 8px}
-.bh button{padding:3px 10px}
+.bh button{padding:3px 10px;white-space:nowrap}
 .blk.ok .meta{color:var(--ok)}
 table.g{border-collapse:separate;border-spacing:0;min-width:100%}
 table.g th{position:sticky;top:36px;z-index:2;background:var(--bg3);text-align:left;padding:5px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;font-weight:600}
@@ -87,6 +87,11 @@ table.g tr.sel td{background:var(--sel)}
 td.rn,th.rn{color:var(--mut);text-align:right;width:1%;background:var(--bg2)!important;cursor:default;position:sticky;left:0}
 th.rn{z-index:4}
 td.num{text-align:right}
+table.g td.fk .fkgo,.kv td.fk .fkgo{float:right;margin-left:8px;padding:0 6px;line-height:1.35;font-size:12px;border-color:var(--acc);color:var(--acc);background:var(--bg);visibility:hidden}
+table.g td.fk:hover .fkgo,.kv tr:hover td.fk .fkgo,.fkgo:focus-visible{visibility:visible}
+.fkgo:hover{background:var(--acc)!important;color:var(--accfg)!important}
+.fkb{font-size:10px;font-weight:700;color:var(--acc);border:1px solid var(--acc);border-radius:3px;padding:0 3px;margin-left:6px;vertical-align:1px}
+.crumb{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
 table.g td.changed{box-shadow:inset 3px 0 var(--warn)}
 table.g td.can-edit{cursor:text}
 .cell-value{display:block;width:100%;border:0;border-radius:0;background:transparent;color:inherit;padding:0;text-align:inherit;overflow:hidden;text-overflow:ellipsis}
@@ -210,11 +215,11 @@ function flush(){
   fetch('/api/state/set',{method:'POST',keepalive:body.length<60000,headers:{'Content-Type':'application/json','X-Token':TOKEN},body}).catch(()=>{histDirty=true});
 }
 const cur=()=>S.tabs[S.act];
-function newTab(sql='',title='consulta',pinned=false){S.tabs.push({id:nextId++,title,sql,pinned,results:[],error:null,running:false});S.act=S.tabs.length-1;drawTabs();loadEditor();save();return cur()}
+function newTab(sql='',title='consulta',pinned=false){S.tabs.push({id:nextId++,title,sql,pinned,results:[],error:null,running:false,back:[]});S.act=S.tabs.length-1;drawTabs();loadEditor();save();return cur()}
 function switchTab(i){S.act=i;drawTabs();loadEditor();save()}
 function closeTab(i){
   if(!replaceResults(S.tabs[i]))return;
-  if(S.tabs.length===1){Object.assign(S.tabs[0],{sql:'',title:'consulta',results:[],error:null,table:null});drawTabs();loadEditor();save();return}
+  if(S.tabs.length===1){Object.assign(S.tabs[0],{sql:'',title:'consulta',results:[],error:null,table:null,back:[]});drawTabs();loadEditor();save();return}
   S.tabs.splice(i,1);S.act=Math.min(S.act,S.tabs.length-1);if(i<S.act)S.act--;drawTabs();loadEditor();save();
 }
 function drawTabs(){
@@ -253,6 +258,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='F5'){e.preventDefault();run()}
   if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();newTab();$('#sql').focus()}
   if(e.altKey&&e.key.toLowerCase()==='w'){e.preventDefault();closeTab(S.act)}
+  if(e.altKey&&e.key==='ArrowLeft'&&cur().back.length){e.preventDefault();goBack()}
   if(e.altKey&&e.key.toLowerCase()==='h'){e.preventDefault();openHist()}
 });
 
@@ -287,7 +293,7 @@ async function setDb(d){
   e.tables=r.tables;
   if(!same){S.tables=r.tables;drawTables()}
 }
-function invalidate(db){const e=S.cache[ck(db)];if(e){e.cols={};e.pend.clear();e.names=null}}
+function invalidate(db){const e=S.cache[ck(db)];if(e){e.cols={};e.pend.clear();e.names=null;e.fks={}}}
 $('#rf').addEventListener('click',()=>{if(!S.db)return;invalidate(S.db);setDb(S.db);toast('Recarregando…')});
 $('#alias').addEventListener('change',e=>setAlias(e.target.value,S.lastDb[e.target.value]));
 $('#db').addEventListener('change',e=>{const v=e.target.value.trim();if(!v)return setDb('');if(S.dbs&&S.dbs.includes(v))setDb(v);else{toast('Banco não encontrado');e.target.value=S.db}});
@@ -329,6 +335,8 @@ async function run(){
   if(!replaceResults(t))return;
   const source=t.table;
   const table=source?.sql===sql&&source.alias===S.alias&&source.db===S.db?source.name:undefined;
+  const nx=t.fkNext;t.fkNext=null;
+  const fkSrc=table?{alias:S.alias,db:S.db,table}:nx&&nx.sql===sql&&nx.alias===S.alias?nx:simpleSelect(sql);
   t.running=true;t.error=null;t.qid=Math.random().toString(36).slice(2);t.t0=Date.now();t.qalias=S.alias;
   if(t===cur())renderRes();
   if(!t.pinned)t.title=sql.replace(/\s+/g,' ').trim().slice(0,28)||t.title;
@@ -336,6 +344,7 @@ async function run(){
   const r=await apiPw('/api/query',{alias:t.qalias,db:S.db,sql,table,limit:+$('#limit').value,qid:t.qid});
   t.running=false;
   t.results=r.results||[];t.error=r.error||null;
+  if(fkSrc&&t.results.length===1&&t.results[0].columns.length)attachFks(t,t.results[0],fkSrc);
   if(t===cur()){renderRes();hideRec();updateRun()}
   if(S.alias===t.qalias&&r.db!==undefined&&r.db!==null&&r.db!==S.db){setDbValue(r.db);setDb(r.db)}
   if(!r.error&&/\b(create|drop|alter|rename)\s+(or\s+replace\s+)?(table|view)\b/i.test(sql)&&S.db){invalidate(S.db);setDb(S.db)}
@@ -355,14 +364,15 @@ function renderRes(){
   moreObs.disconnect();
   if(t.running){box.innerHTML=`<div class="msg">Executando… <b>${((Date.now()-t.t0)/1000).toFixed(1)} s</b><br><br><small>Esc cancela</small></div>`;return}
   if(!t.results.length&&!t.error){box.innerHTML='<div class="msg">Escreva uma consulta e pressione <kbd>Ctrl</kbd> + <kbd>Enter</kbd><br><br>Clique numa tabela à esquerda para ver o conteúdo.</div>';return}
-  box.innerHTML=t.results.map(blk).join('')+(t.error?`<div class="err">${esc(t.error)}</div>`:'');
+  const cr=t.back.length&&t.results.findIndex(r=>r.columns.length)<0?`<div class="crumb">${backBtn(t)}</div>`:'';
+  box.innerHTML=cr+t.results.map(blk).join('')+(t.error?`<div class="err">${esc(t.error)}</div>`:'');
   observeMore(box);
 }
 function blk(r,i){
   const q=esc(r.sql.replace(/\s+/g,' ').slice(0,140));
   if(!r.columns.length)return `<div class="blk ok"><div class="bh"><span class="q">${q}</span><span class="sp"></span><span class="meta">OK · ${r.affected} linha(s) afetada(s) · ${fmtMs(r.ms)}</span></div></div>`;
   const n=r.rows.length;
-  return `<div class="blk" data-i="${i}"><div class="bh"><span class="q" title="${esc(r.sql)}">${q}</span><span class="meta">${n}${r.truncated?'+':''} linha(s) · ${fmtMs(r.ms)}${r.truncated?' · <b>cortado no máximo de linhas</b>':''}</span><span class="sp"></span><input class="f" placeholder="filtrar resultado…" value="${esc(r.filter||'')}"><span class="edit-actions">${editActions(r)}</span><button data-a="vert" class="${r.vert?'on':''}" title="Equivale ao \\G do mycli">Vertical</button><button data-a="csv">CSV</button></div>${r.editError?`<div class="err" role="alert">${esc(r.editError)}</div>`:''}<div class="gw">${grid(r)}</div></div>`;
+  return `<div class="blk" data-i="${i}"><div class="bh">${cur().back.length&&cur().results.findIndex(x=>x.columns.length)===i?backBtn(cur()):''}<span class="q" title="${esc(r.sql)}">${q}</span><span class="meta">${n}${r.truncated?'+':''} linha(s) · ${fmtMs(r.ms)}${r.truncated?' · <b>cortado no máximo de linhas</b>':''}</span><span class="sp"></span><input class="f" placeholder="filtrar resultado…" value="${esc(r.filter||'')}"><span class="edit-actions">${editActions(r)}</span><button data-a="vert" class="${r.vert?'on':''}" title="Equivale ao \\G do mycli">Vertical</button><button data-a="csv">CSV</button></div>${r.editError?`<div class="err" role="alert">${esc(r.editError)}</div>`:''}<div class="gw">${grid(r)}</div></div>`;
 }
 function cmp(x,y){
   if(x===null||y===null)return (x===null)-(y===null);
@@ -389,7 +399,7 @@ function grid(r){
   if(r.vert)return vert(r,idx);
   r.shown=Math.min(CHUNK,idx.length);
   let h='<table class="g"><thead><tr><th class="rn">#</th>';
-  r.columns.forEach((c,j)=>{h+=`<th data-j="${j}">${esc(c)}${r.sort&&r.sort.j===j?(r.sort.d>0?' ▲':' ▼'):''}</th>`});
+  r.columns.forEach((c,j)=>{const f=r.fkmap?.get(j);h+=`<th data-j="${j}"${f?` title="${esc(fkTitle(f))}"`:''}>${esc(c)}${f?'<span class="fkb">FK</span>':''}${r.sort&&r.sort.j===j?(r.sort.d>0?' ▲':' ▼'):''}</th>`});
   h+='</tr></thead><tbody>';
   for(let k=0;k<r.shown;k++)h+=rowHtml(r,idx[k],k);
   return h+moreRow(r,idx,r.shown)+'</tbody></table>'+(idx.length?'':'<div class="msg">Nenhuma linha.</div>');
@@ -409,10 +419,10 @@ const moreObs=new IntersectionObserver(es=>{
 },{root:$('#res'),rootMargin:'800px'});
 const observeMore=scope=>scope.querySelectorAll('tr.more').forEach(tr=>moreObs.observe(tr));
 function kv(r,i){
-  return '<table class="kv">'+r.columns.map((c,j)=>{const v=r.rows[i][j];return `<tr><th>${esc(c)}</th>${v===null?'<td class="nul">NULL</td>':`<td>${esc(v)}</td>`}</tr>`}).join('')+'</table>';
+  return '<table class="kv">'+r.columns.map((c,j)=>{const v=r.rows[i][j];const f=r.fkmap?.get(j);return `<tr><th>${esc(c)}</th>${v===null?'<td class="nul">NULL</td>':`<td${f?' class="fk"':''}>${f?fkBtn(f,j):''}${esc(v)}</td>`}</tr>`}).join('')+'</table>';
 }
 function vert(r,idx){
-  let h=idx.slice(0,100).map((i,k)=>`<div class="rec"><div class="rh">Linha ${k+1}</div>${kv(r,i)}</div>`).join('');
+  let h=idx.slice(0,100).map((i,k)=>`<div class="rec" data-r="${i}"><div class="rh">Linha ${k+1}</div>${kv(r,i)}</div>`).join('');
   if(idx.length>100)h+=`<div class="msg">Mostrando 100 de ${idx.length} registros (use o filtro para reduzir).</div>`;
   return h||'<div class="msg">Nenhuma linha.</div>';
 }
@@ -442,6 +452,68 @@ function editActions(r){
     <button data-a="copy-update" ${disabled}>Copiar UPDATE</button>
     <button data-a="discard" ${r.saving?'disabled':''}>${r.drafts.size?'Descartar':'Sair da edição'}</button>`;
 }
+/* ---------- chaves estrangeiras ---------- */
+const cellText=td=>{const c=td.cloneNode(true);c.querySelectorAll('.fkgo').forEach(x=>x.remove());return c.textContent};
+const fkTitle=f=>`FK ${f.name}: ${f.cols.join(', ')} → ${f.rdb}.${f.rtable}(${f.rcols.join(', ')}) · ON DELETE ${f.on_delete} · ON UPDATE ${f.on_update}`;
+const fkBtn=(f,j)=>`<button type="button" class="fkgo" data-fk="${j}" title="${esc('Abrir o registro em '+f.rtable+' ('+f.rcols.join(', ')+') — Ctrl+clique: nova aba\n'+fkTitle(f))}" aria-label="Abrir registro em ${esc(f.rtable)}">↗</button>`;
+function fkMap(r,list){
+  const m=new Map();
+  for(const f of list){
+    const idx=f.cols.map(c=>r.columns.indexOf(c));
+    if(idx.includes(-1))continue;
+    const o={...f,idx};idx.forEach(j=>{if(!m.has(j))m.set(j,o)});
+  }
+  return m;
+}
+/* SELECT simples de uma única tabela (sem JOIN, vírgula, função, alias de coluna ou GROUP BY):
+   as colunas do resultado são colunas reais da tabela, então dá para ligar as FKs pelo nome. */
+function simpleSelect(sql){
+  const id='(?:`[^`]+`|[\\w$]+)',un=x=>x.replace(/`/g,''),clean=sql.replace(NOISE,' ').trim();
+  const m=new RegExp(`^select\\s+(?:distinct\\s+)?([^()]+?)\\s+from\\s+(${id})(?:\\s*\\.\\s*(${id}))?\\s*(?:(where|order\\s+by|limit)\\b[\\s\\S]*)?;?$`,'i')
+    .exec(clean);
+  if(!m||/\bas\b/i.test(m[1])||clean.replace(/;\s*$/,'').includes(';')||/\b(join|union|group)\b/i.test(clean))return null;
+  return{alias:S.alias,db:m[3]?un(m[2]):S.db,table:un(m[3]||m[2])};
+}
+function attachFks(t,r,src){   // só a tabela deste resultado; 1 consulta, em cache até invalidate()
+  r.fkSrc=src;
+  const e=entOf(src.alias,src.db),cache=e.fks,c=cache[src.table];
+  if(c){r.fkmap=fkMap(r,c);return}
+  api('/api/fks',{alias:src.alias,db:src.db,tables:[src.table]}).then(x=>{
+    if(x.error||!x.fks)return;
+    const list=x.fks[src.table]||[];
+    if(e.fks===cache)cache[src.table]=list;
+    if(!list.length)return;
+    r.fkmap=fkMap(r,list);
+    if(t===cur()&&t.results.includes(r)&&!t.results.some(y=>y.drafts||y.saving)){renderRes();hideRec()}
+  });
+}
+const lit=v=>typeof v==='number'?String(v):"'"+String(v).replace(/\\/g,'\\\\').replace(/'/g,"''")+"'";
+function fkGo(r,i,j,inNew){
+  const f=r.fkmap?.get(j),src=r.fkSrc,t=cur();
+  if(!f||!src||t.running)return;
+  if(S.alias!==src.alias)return toast('Selecione a conexão '+src.alias);
+  const vals=f.idx.map(k=>r.rows[i][k]);
+  if(vals.some(v=>v===null))return toast('Valor NULL: não há registro para abrir');
+  const sql=`SELECT * FROM ${bq(f.rdb)}.${bq(f.rtable)} WHERE ${f.rcols.map((c,k)=>bq(c)+' = '+lit(vals[k])).join(' AND ')} LIMIT 200;`;
+  const next={sql,alias:src.alias,db:f.rdb,table:f.rtable};
+  if(inNew){newTab(sql,f.rtable,true).fkNext=next;run();return}
+  if(!replaceResults(t))return;
+  t.results.forEach(x=>{x.drafts=null});
+  t.back.push({sql:t.sql,title:t.title,pinned:t.pinned,results:t.results,error:t.error,table:t.table,alias:S.alias,db:S.db,scroll:$('#res').scrollTop});
+  if(t.back.length>20)t.back.shift();
+  Object.assign(t,{sql,title:f.rtable,pinned:true,table:null,fkNext:next});
+  setSql(sql);drawTabs();run();
+}
+const backBtn=t=>`<button data-a="back" title="${esc('Voltar para: '+t.back[t.back.length-1].title+' (Alt+←)')}">← Voltar</button>`;
+function goBack(){
+  const t=cur();
+  if(t.running)return toast('Aguarde a consulta terminar (Esc cancela)');
+  if(!t.back.length||!replaceResults(t))return;
+  const s=t.back.pop();
+  Object.assign(t,{sql:s.sql,title:s.title,pinned:s.pinned,results:s.results,error:s.error,table:s.table,fkNext:null});
+  setSql(s.sql);drawTabs();renderRes();hideRec();updateRun();$('#res').scrollTop=s.scroll||0;save();
+  if(s.alias!==S.alias)setAlias(s.alias,s.db);else if(s.db!==S.db)setDb(s.db);
+}
 const shownValue=(r,i,j)=>r.drafts?.get(i)?.has(j)?r.drafts.get(i).get(j):r.rows[i][j];
 function cellHtml(r,i,j){
   const v=shownValue(r,i,j),changed=r.drafts?.get(i)?.has(j);
@@ -449,7 +521,8 @@ function cellHtml(r,i,j){
   const style=[v===null?'nul':typeof v==='number'?'num':'',changed?'changed':'',canEdit?'can-edit':''].filter(Boolean).join(' ');
   const label=v===null?'NULL':esc(v);
   const editable=r.drafts&&canEdit;
-  return `<td class="${style}" data-col="${j}"${canEdit&&!editable?' title="Duplo clique para editar"':''}>${editable?`<button type="button" class="cell-value"
+  const f=v!==null&&r.fkmap?.get(j);
+  return `<td class="${[style,f?'fk':''].filter(Boolean).join(' ')}" data-col="${j}"${canEdit&&!editable?' title="Duplo clique para editar"':''}>${f?fkBtn(f,j):''}${editable?`<button type="button" class="cell-value"
     title="Editar ${esc(r.columns[j])}" aria-label="Editar ${esc(r.columns[j])}, linha ${i+1}">${label||'&nbsp;'}</button>`:label}</td>`;
 }
 function beginEdits(b,r){
@@ -531,8 +604,11 @@ async function saveEdits(r){
   if(t===cur()){renderRes();hideRec()}
 }
 $('#res').addEventListener('click',e=>{
+  if(e.target.closest('[data-a="back"]'))return goBack();
   const[b,r]=resOf(e.target);if(!r)return;
   if(e.target.closest('.cell-editor'))return;
+  const fg=e.target.closest('.fkgo');
+  if(fg){const row=fg.closest('[data-r]');if(row)fkGo(r,+row.dataset.r,+fg.dataset.fk,e.ctrlKey||e.metaKey||e.shiftKey);return}
   const cell=e.target.closest('.cell-value');
   if(cell){hideRec();startCell(cell.closest('td'),b,r);return}
   const a=e.target.closest('[data-a]');
@@ -562,7 +638,7 @@ $('#res').addEventListener('click',e=>{
     if(r.edit?.columns.includes(col)&&!r.saving)return; // evita abrir o painel entre os cliques
     r.sel=+tr.dataset.r;b.querySelectorAll('tr.sel').forEach(x=>x.classList.remove('sel'));tr.classList.add('sel');showRec(r,r.sel);return
   }
-  const c=e.target.closest('.kv td');if(c)copy(c.textContent);
+  const c=e.target.closest('.kv td');if(c)copy(cellText(c));
 });
 $('#res').addEventListener('dblclick',e=>{
   const td=e.target.closest('table.g tbody tr[data-r] td:not(.rn)');
@@ -575,20 +651,24 @@ $('#res').addEventListener('dblclick',e=>{
     startCell(b.querySelector(`tr[data-r="${i}"] td[data-col="${j}"]`),b,r);
     return;
   }
-  copy(td.classList.contains('nul')?'':td.textContent);
+  copy(td.classList.contains('nul')?'':cellText(td));
 });
 $('#res').addEventListener('input',e=>{
   if(!e.target.matches('.f'))return;
   const[b,r]=resOf(e.target);r.filter=e.target.value;regrid(b,r);
 });
+let recR=null;
 function showRec(r,i){
-  $('#rec').innerHTML=`<div style="width:100%"><div class="rh">Registro (clique no valor para copiar)<button id="rx" title="Fechar">×</button></div>${kv(r,i)}</div>`;
+  recR=r;
+  $('#rec').innerHTML=`<div style="width:100%" data-r="${i}"><div class="rh">Registro (clique no valor para copiar)<button id="rx" title="Fechar">×</button></div>${kv(r,i)}</div>`;
   $('#rec').classList.add('show');
 }
 function hideRec(){$('#rec').classList.remove('show')}
 $('#rec').addEventListener('click',e=>{
   if(e.target.id==='rx')return hideRec();
-  const c=e.target.closest('.kv td');if(c)copy(c.textContent);
+  const fg=e.target.closest('.fkgo');
+  if(fg){if(recR)fkGo(recR,+fg.closest('[data-r]').dataset.r,+fg.dataset.fk,e.ctrlKey||e.metaKey||e.shiftKey);return}
+  const c=e.target.closest('.kv td');if(c)copy(cellText(c));
 });
 
 /* ---------- histórico ---------- */
@@ -646,7 +726,8 @@ const AC={open:false,items:[],sel:0,start:0,end:0,prefix:'',skip:false};
 const ICON={table:'T',col:'C',kw:'K',fn:'ƒ',db:'D'};
 S.cache={};
 const ck=db=>S.alias+'|'+db;
-const ent=db=>S.cache[ck(db)]||(S.cache[ck(db)]={cols:{},pend:new Set(),names:null});
+const entOf=(alias,db)=>S.cache[alias+'|'+db]||(S.cache[alias+'|'+db]={cols:{},pend:new Set(),names:null,fks:{}});
+const ent=db=>entOf(S.alias,db);
 function tnames(db){   // lower -> nome real, a partir de SHOW FULL TABLES (já carregado)
   const ts=tablesOf(db);if(!ts)return null;const e=ent(db);
   if(!e.names||e.namesSrc!==ts){e.names=new Map(ts.map(t=>[t[0].toLowerCase(),t[0]]));e.namesSrc=ts}
@@ -879,8 +960,8 @@ $('#upd').addEventListener('click',async()=>{
   HIST=Array.isArray(stt.hist)?stt.hist:[];
   S.lastDb=st.dbs||{};
   const saved=(st.tabs||[]).filter(t=>t&&typeof t.sql==='string');
-  if(saved.length){saved.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql,pinned:!!t.pinned,results:[],error:null,running:false}));S.act=Math.min(Math.max(st.act||0,0),S.tabs.length-1)}
-  else S.tabs.push({id:nextId++,title:'consulta',sql:'',results:[],error:null,running:false});
+  if(saved.length){saved.forEach(t=>S.tabs.push({id:nextId++,title:t.title||'consulta',sql:t.sql,pinned:!!t.pinned,results:[],error:null,running:false,back:[]}));S.act=Math.min(Math.max(st.act||0,0),S.tabs.length-1)}
+  else S.tabs.push({id:nextId++,title:'consulta',sql:'',results:[],error:null,running:false,back:[]});
   stateReady=true;
   drawTabs();loadEditor();
   const want=new URLSearchParams(location.search).get('a');
