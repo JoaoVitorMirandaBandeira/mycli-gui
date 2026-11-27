@@ -85,6 +85,11 @@ Os testes do parser rodam com `node --test tests/sql-editor.test.cjs` e `python3
 | Copiar o valor de uma célula | **Ctrl+clique** na célula do resultado |
 | Sugestões de tabela/coluna | digite; ou **Ctrl+Espaço** |
 | Executar só um trecho | selecione e **Ctrl+Enter** |
+| Ver todos os atalhos | **F1** ou o botão **⌨** no topo |
+| Nova aba / fechar aba | **Ctrl+T** / **Ctrl+W** (ou **Alt+N** / **Alt+W**) |
+| Reabrir a última aba fechada | **Ctrl+Shift+T** |
+| Trocar de aba | **Ctrl+Tab** / **Ctrl+Shift+Tab**, ou **Ctrl+1…9** |
+| Comentar/descomentar linha | **Ctrl+/** |
 | Histórico de consultas | **Alt+H** |
 | Terminal em vez de janela | `my nome_da_conexao` |
 | Nova / editar conexão | **＋** e **✎** na janela (ou `my -a`) |
