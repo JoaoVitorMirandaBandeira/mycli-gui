@@ -29,9 +29,11 @@ Prefere o terminal? `my -a` faz a mesma pergunta por lá. Quer trazer as do DBea
 
 Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
 
-Para alterar registros, abra uma tabela pela lista à esquerda e clique em **Editar dados**. Clique na célula, digite o novo valor e pressione **Enter**. Use o botão **NULL** da célula para gravar um valor nulo. Quando terminar, clique em **Salvar** para aplicar todas as alterações ou em **Descartar** para desfazê-las antes de gravar.
+Para alterar registros, abra uma tabela pela lista à esquerda ou execute um `SELECT *` de uma única tabela, inclusive com `WHERE`, `ORDER BY` e `LIMIT`. Dê um duplo clique na célula ou clique em **Editar dados** e escolha a célula. Digite o novo valor e pressione **Enter**. Use o botão **NULL** da célula para gravar um valor nulo. Quando terminar, clique em **Salvar** para aplicar todas as alterações ou em **Descartar** para desfazê-las antes de gravar.
 
-A edição direta fica disponível para tabelas InnoDB com chave primária visível e colunas compatíveis. Chaves primárias, colunas geradas e resultados de SQL escrito no editor são somente leitura. Se um registro tiver mudado desde a consulta, o MySQL desfaz o lote e a interface pede para recarregar a tabela.
+A edição direta fica disponível para tabelas InnoDB com chave primária visível e colunas compatíveis. Chaves primárias e colunas geradas são somente leitura. Em resultados com **Somente leitura**, clique nesse botão para ver o motivo. Se um registro tiver mudado desde a consulta, o MySQL desfaz o lote e a interface pede para recarregar a tabela.
+
+Para levar o SQL das alterações pendentes para outro editor, clique em **Copiar UPDATE**. Cada comando inclui o banco, a tabela e a chave primária original da linha.
 
 ## O que fica salvo
 
