@@ -37,6 +37,22 @@ A edição direta fica disponível para tabelas InnoDB com chave primária visí
 
 Ao fechar e abrir de novo (ou reiniciar a máquina) a janela volta como estava: **conexão e banco de cada conexão, abas, SQL escrito e histórico**. Fica em `~/.config/my-gui/state.json` (permissão 600, gravação atômica com `fsync` e cópia `.bak`).
 
+## Atualizações
+
+A janela mostra a versão instalada (`v1.0.0`, no topo à direita) e, quando há uma release nova no GitHub, o botão verde **⬆ Atualizar para vX.Y.Z**. Clique nele: o app baixa a versão, instala em `~/.local` e recarrega a janela sozinho (abas, SQL e histórico continuam como estavam). Se houver alterações pendentes na tabela, ele pede para salvar ou descartar antes. Clicar no número da versão força uma verificação.
+
+- A verificação roda ao abrir o app e a cada 6 horas, em segundo plano: uma requisição leve à API de releases (com ETag; sem rede ou com a VPN fora, simplesmente não avisa).
+- Segurança: só baixa por HTTPS de `github.com/JoaoVitorMirandaBandeira/mycli-gui` (redirecionamentos só para o CDN do GitHub), confere o SHA-256 publicado na release e copia apenas `bin/my`, `server.py`, `index.html`, `my-gui.svg` e `VERSION`. Nada do pacote é executado, nem o `install.sh`. A rota de atualização exige o token da sessão, como as demais.
+- A versão anterior fica em `~/.local/share/my-gui/backup/`. Se a versão nova não subir, o app volta sozinho para a anterior. Para voltar manualmente: `python3 ~/.local/share/my-gui/server.py --rollback` (e abra `my` de novo).
+- A atualização não instala dependências nem refaz o atalho do menu; se uma versão pedir isso, rode `git pull && ./install.sh`. Cópias fora de `~/.local` (checkout de desenvolvimento) não se atualizam sozinhas.
+
+### Publicar uma versão nova (mantenedor)
+
+1. Aumente o número em `my-gui/VERSION` (ex.: `1.1.0`), faça commit e merge na `main`.
+2. Na `main` atualizada, com o `gh` logado: `tools/release.sh "o que mudou"` (sem texto, as notas são geradas dos commits).
+
+O script cria a tag `v1.1.0` e a release com `my-gui-1.1.0.tar.gz` e o `.sha256`; em até 6 horas (ou ao reabrir o app) os usuários veem o aviso. O `VERSION` precisa ser maior que o da release anterior, e o app ignora releases sem esses dois arquivos.
+
 ## Dicas
 
 | Quero | Como |
