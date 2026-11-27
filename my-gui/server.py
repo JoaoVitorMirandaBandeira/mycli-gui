@@ -234,40 +234,89 @@ pool = Pool()
 
 
 # -------------------------------------------------------------------- sql ---
-def split_sql(sql):
-    out, buf, i, n, q = [], [], 0, len(sql), None
-    while i < n:
-        ch = sql[i]
-        nx = sql[i + 1] if i + 1 < n else ''
-        if q:
-            buf.append(ch)
-            if ch == '\\' and q != '`' and i + 1 < n:
-                buf.append(nx); i += 2; continue
-            if ch == q:
-                if nx == q:
-                    buf.append(nx); i += 2; continue
-                q = None
-        elif ch in '\'"`':
-            q = ch; buf.append(ch)
-        elif ch == '#' or (ch == '-' and nx == '-' and (i + 2 >= n or sql[i + 2] in ' \t\r\n')):
-            j = sql.find('\n', i); j = n if j < 0 else j
-            buf.append(sql[i:j]); i = j; continue
-        elif ch == '/' and nx == '*':
-            j = sql.find('*/', i + 2); j = n if j < 0 else j + 2
-            buf.append(sql[i:j]); i = j; continue
-        elif ch == ';':
-            out.append(''.join(buf)); buf = []
+# Mantenha as regras de delimitação em sincronia com sqlStatements() no editor.
+SQL_TRIVIA = re.compile(r'[^\S\n]+|\n|--(?=[\x00-\x20\x7f]|$)[^\n]*|#[^\n]*|/\*(?!!|M!)[\s\S]*?(?:\*/|$)', re.I)
+SQL_SPLIT_QUOTED = re.compile(
+    r"""'(?:[^'\\]|\\[\s\S]|'')*(?:'|\\?$)|"(?:[^"\\]|\\[\s\S]|"")*(?:"|\\?$)|"""
+    r'\x60(?:[^\x60]|\x60\x60)*(?:\x60|$)')
+SQL_DIRECTIVE = re.compile(r'/\*(?:!|M!)\d*\s*([\s\S]*?)(?:\*/|$)', re.I)
+SQL_DELIMITER = re.compile(r'[ \t]*delimiter(?=[ \t\r\n]|$)[ \t]*([^\r\n]*)(?:\r?\n|$)', re.I)
+SQL_ROUTINE_HEAD = re.compile(r'begin\b|create\b|/\*(?:!|M!)', re.I)
+SQL_ROUTINE = re.compile(
+    r'^(?:begin\s+not\s+atomic\b|create\s+(?:or\s+replace\s+)?'
+    r'(?:definer\s*=\s*[^\s@()]+(?:\s*@\s*[^\s@()]+|\s*\(\s*\))?\s+)?'
+    r'(?:aggregate\s+)?(?:procedure|function|trigger|event)\b)', re.I)
+SQL_PLAIN = re.compile(r"""[^\s'"\x60#;/\-]+""")
+
+
+def sql_command(sql):
+    """Remove comentários comuns e valores entre aspas para classificar a instrução."""
+    parts = []
+    start = i = 0
+    while i < len(sql):
+        trivia = SQL_TRIVIA.match(sql, i)
+        quoted = None if trivia else SQL_SPLIT_QUOTED.match(sql, i)
+        directive = None if trivia or quoted else SQL_DIRECTIVE.match(sql, i)
+        token = trivia or quoted or directive
+        if not token:
+            plain = SQL_PLAIN.match(sql, i)
+            i = plain.end() if plain else i + 1
+            continue
+        parts.append(sql[start:i])
+        if directive:
+            parts.append(' ' + sql_command(directive[1]) + ' ')
         else:
-            buf.append(ch)
-        i += 1
-    out.append(''.join(buf))
-    res = []
-    for s in out:
-        s = s.strip()
-        rest = re.sub(r'/\*.*?\*/|--[^\n]*|#[^\n]*', '', s, flags=re.S).strip()
-        if rest:
-            res.append(s)
-    return res
+            parts.append('?' if quoted else ' ')
+        start = i = token.end()
+    parts.append(sql[start:])
+    return ''.join(parts).strip()
+
+
+def split_sql(sql):
+    statements = []
+    delimiter = ';'
+    start = None
+    i = 0
+
+    def add_statement(end):
+        if start is None:
+            return
+        statement = sql[start:end].rstrip()
+        if delimiter == ';' and SQL_ROUTINE_HEAD.match(sql, start) and SQL_ROUTINE.match(sql_command(statement)):
+            raise ApiError('Use DELIMITER para executar a definição inteira da rotina')
+        statements.append(statement)
+
+    while i < len(sql):
+        change = SQL_DELIMITER.match(sql, i) if i == 0 or sql[i - 1] == '\n' else None
+        if change:
+            argument = change[1].strip()
+            quoted = re.fullmatch(r'''(['"\x60])([^\r\n]*)\1''', argument)
+            value = quoted[2] if quoted else argument
+            if start is not None or not re.fullmatch(r"""[^\s\\'"\x60]+""", value):
+                raise ApiError('DELIMITER inválido ou fora do início de uma instrução')
+            delimiter = value
+            i = change.end()
+            continue
+        if sql.startswith(delimiter, i):
+            add_statement(i)
+            start = None
+            i += len(delimiter)
+            continue
+        trivia = SQL_TRIVIA.match(sql, i)
+        if trivia:
+            i = trivia.end()
+            continue
+        if start is None:
+            start = i
+        token = SQL_SPLIT_QUOTED.match(sql, i) or SQL_DIRECTIVE.match(sql, i)
+        if not token and delimiter == ';':
+            token = SQL_PLAIN.match(sql, i)
+        i = token.end() if token else i + 1
+
+    if start is not None and delimiter != ';':
+        raise ApiError(f'Falta o delimitador {delimiter} no fim da instrução')
+    add_statement(len(sql))
+    return statements
 
 
 def jv(v):

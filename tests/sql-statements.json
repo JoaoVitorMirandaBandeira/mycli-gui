@@ -1,0 +1,103 @@
+[
+  {
+    "name": "quoted strings and identifiers",
+    "sql": "SELECT 'a;b', 'it\\'s;', 'it''s;', \"a;\", `a``;b`; SELECT 2",
+    "statements": [
+      "SELECT 'a;b', 'it\\'s;', 'it''s;', \"a;\", `a``;b`",
+      "SELECT 2"
+    ]
+  },
+  {
+    "name": "ordinary comments and empty statements",
+    "sql": "; -- DROP TABLE x;\n# UPDATE t;\n/* ; */ SELECT 4--1; ;; SELECT 2;",
+    "statements": [
+      "SELECT 4--1",
+      "SELECT 2"
+    ]
+  },
+  {
+    "name": "versioned commands",
+    "sql": "/*!50000 DROP TABLE t */; /*M!100100 TRUNCATE t */;",
+    "statements": [
+      "/*!50000 DROP TABLE t */",
+      "/*M!100100 TRUNCATE t */"
+    ]
+  },
+  {
+    "name": "unclosed string",
+    "sql": "SELECT 'open; SELECT 2;",
+    "statements": [
+      "SELECT 'open; SELECT 2;"
+    ]
+  },
+  {
+    "name": "delimiter and stored program",
+    "sql": "SELECT 1;\n  DELIMITER $$\nCREATE PROCEDURE p()\nBEGIN\n  SELECT '$$;' /* $$ */;\n  UPDATE t SET col = 2;\nEND$$\nDELIMITER ;\nSELECT 3;",
+    "statements": [
+      "SELECT 1",
+      "CREATE PROCEDURE p()\nBEGIN\n  SELECT '$$;' /* $$ */;\n  UPDATE t SET col = 2;\nEND",
+      "SELECT 3"
+    ]
+  },
+  {
+    "name": "delimiter in a string and windows line endings",
+    "sql": "SELECT 'line\nDELIMITER //\n;';\r\nDELIMITER //\r\nSELECT '//'//\r\nDELIMITER ;\r\nSELECT 3;",
+    "statements": [
+      "SELECT 'line\nDELIMITER //\n;'",
+      "SELECT '//'",
+      "SELECT 3"
+    ]
+  },
+  {
+    "name": "quoted delimiter and control character in line comment",
+    "sql": "DELIMITER '//'\nSELECT 1 --\t //\n//\nDELIMITER ;\n--\fcomment; SELECT 9;\nSELECT 2;",
+    "statements": [
+      "SELECT 1 --\t //",
+      "SELECT 2"
+    ]
+  },
+  {
+    "name": "procedure without delimiter",
+    "sql": "SELECT 1;\nCREATE PROCEDURE p() BEGIN SELECT 1; UPDATE t SET col = 2; END;",
+    "error": "Use DELIMITER"
+  },
+  {
+    "name": "trigger with a quoted definer and no delimiter",
+    "sql": "CREATE /* note */ DEFINER = 'u'@'localhost' TRIGGER p BEFORE INSERT ON t FOR EACH ROW BEGIN SET NEW.col=2; UPDATE t2 SET col=2; END;",
+    "error": "Use DELIMITER"
+  },
+  {
+    "name": "versioned routine without delimiter",
+    "sql": "/*!50003 CREATE*/ /*!50020 DEFINER=`x`@`localhost`*/ /*!50003 TRIGGER p */ BEGIN SELECT 1; UPDATE t SET col=2; END;",
+    "error": "Use DELIMITER"
+  },
+  {
+    "name": "anonymous MariaDB block without delimiter",
+    "sql": "BEGIN NOT ATOMIC SET @value=1; UPDATE t SET col=2; END;",
+    "error": "Use DELIMITER"
+  },
+  {
+    "name": "transaction",
+    "sql": "BEGIN; SELECT 1; COMMIT;",
+    "statements": [
+      "BEGIN",
+      "SELECT 1",
+      "COMMIT"
+    ]
+  },
+  {
+    "name": "missing trailing custom delimiter",
+    "sql": "DELIMITER $$\nCREATE PROCEDURE p() BEGIN SELECT 1; END",
+    "error": "Falta o delimitador"
+  },
+  {
+    "name": "delimiter in the middle of a statement",
+    "sql": "SELECT 1\nDELIMITER $$\nSELECT 2$$",
+    "error": "DELIMITER inválido"
+  },
+  {
+    "name": "comment-only script",
+    "sql": "/* comment */\n # SELECT 1\n -- foo\n ;",
+    "statements": []
+  }
+]
