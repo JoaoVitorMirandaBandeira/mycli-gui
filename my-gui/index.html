@@ -345,9 +345,32 @@ const S={alias:'',db:'',lastDb:{},dbsCache:{},tabs:[],act:0,tables:[]};
 let nextId=1,saveT=null;
 let HIST=[],stateReady=false;
 
+let DEAD=false;
 async function api(path,body){
+  if(DEAD)return{error:'Servidor local encerrado. Feche esta janela e abra o my-gui de novo.'};
   try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Token':TOKEN},body:JSON.stringify(body||{})});return await r.json()}
   catch(e){return{error:'Servidor local indisponível (a janela foi encerrada?)'}}
+}
+// Servidor morto (watchdog, kill, reboot): para de pingar/tentar e avisa; o token morreu junto,
+// então retomar não adianta. Sem isso a janela ficava órfã falhando a cada 5 s para sempre.
+let pingFails=0;
+async function pingLoop(){
+  if(DEAD)return;
+  const r=await api('/api/ping');
+  if(r&&r.error&&/indispon/.test(r.error)){
+    if(++pingFails>=4){serverGone();return}
+  }else pingFails=0;
+  setTimeout(pingLoop,5000);
+}
+function serverGone(){
+  DEAD=true;
+  try{flush()}catch(e){}
+  const o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.82);color:#fff;font:16px sans-serif;text-align:center;padding:24px';
+  o.innerHTML='<b style="font-size:20px">O servidor do my-gui foi encerrado</b><span>Feche esta janela e abra o my-gui novamente.</span>';
+  const b=document.createElement('button');b.textContent='Fechar janela';b.style.cssText='padding:8px 18px;font-size:15px;cursor:pointer';
+  b.onclick=()=>window.close();o.appendChild(b);document.body.appendChild(o);
+  setTimeout(()=>window.close(),30000);
 }
 async function apiPw(path,body){
   let r=await api(path,body);
@@ -1337,8 +1360,8 @@ $('#upd').addEventListener('click',async()=>{
 
 /* ---------- início ---------- */
 (async function init(){
-  setInterval(()=>api('/api/ping'),5000);api('/api/ping');
-  updStatus();setTimeout(updStatus,12000);setInterval(updStatus,15*60000);
+  pingLoop();
+  updStatus();setTimeout(updStatus,12000);setInterval(()=>{if(!DEAD)updStatus()},15*60000);
   addEventListener('pagehide',()=>{flush();navigator.sendBeacon('/api/bye?t='+encodeURIComponent(TOKEN),'')});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
   const r=await api('/api/state/get'),stt=r.state||{},st=stt.ui||{};

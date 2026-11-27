@@ -5,7 +5,7 @@ Usa os aliases de ~/.myclirc ([alias_dsn]). Só escuta em 127.0.0.1, com token.
 Senhas nunca vão para a página. Encerra sozinho quando a janela é fechada.
 """
 import datetime, decimal, hashlib, hmac, io, json, os, re, secrets, shutil, subprocess, sys
-import ssl, tarfile, threading, time, urllib.error, urllib.parse, urllib.request, webbrowser
+import signal, ssl, tarfile, threading, time, urllib.error, urllib.parse, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pymysql
@@ -1079,7 +1079,9 @@ def update_apply():
 
 # ------------------------------------------------------------------- http ---
 TOKEN = secrets.token_urlsafe(24)
-last_ping = time.time()
+# monotonic: não conta o tempo de suspensão do notebook (com time.time() o relógio pula ao
+# acordar e o watchdog derrubava o servidor antes de a página conseguir pingar)
+last_ping = time.monotonic()
 seen = False
 bye_at = None
 
@@ -1125,7 +1127,7 @@ class H(BaseHTTPRequestHandler):
                 return self._send(404, 'not found', 'text/plain')
             return self._send(200, svg, 'image/svg+xml')
         if u.path == '/api/ping' and self._tok_ok():
-            last_ping = time.time()
+            last_ping = time.monotonic()
             return self._send(200, {})
         self._send(404, 'not found', 'text/plain')
 
@@ -1140,12 +1142,12 @@ class H(BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b''
         if u.path == '/api/bye':  # sendBeacon não envia cabeçalhos
             if hmac.compare_digest(urllib.parse.parse_qs(u.query).get('t', [''])[0], TOKEN):
-                bye_at = time.time() + 6
+                bye_at = time.monotonic() + 6
             return self._send(200, {})
         if not self._tok_ok() or 'application/json' not in self.headers.get('Content-Type', ''):
             return self._send(403, {'error': 'não autorizado'})
         if u.path == '/api/ping':
-            last_ping, seen, bye_at = time.time(), True, None
+            last_ping, seen, bye_at = time.monotonic(), True, None
         try:
             d = json.loads(raw or b'{}')
             self._send(200, api(u.path, d))
@@ -1160,10 +1162,34 @@ class H(BaseHTTPRequestHandler):
 def watchdog():
     while True:
         time.sleep(2)
-        now = time.time()
+        now = time.monotonic()
         if (bye_at and now > bye_at) or now - last_ping > (300 if seen else 120):
             drop_state()
+            close_window()  # senão a janela fica órfã, pingando um servidor que não existe mais
             os._exit(0)
+
+
+def _chrome_profile():
+    return os.path.join(CONF_DIR, 'chrome')
+
+
+def close_window():
+    """Encerra o Chrome do perfil dedicado do my-gui (o servidor o abriu; não o deixa órfão)."""
+    flag = f'--user-data-dir={_chrome_profile()}'.encode()
+    me = os.getpid()
+    try:
+        pids = [int(d) for d in os.listdir('/proc') if d.isdigit()]
+    except OSError:
+        return
+    for pid in pids:
+        if pid == me:
+            continue
+        try:
+            args = open(f'/proc/{pid}/cmdline', 'rb').read().split(b'\0')
+            if flag in args:
+                os.kill(pid, 15)
+        except (OSError, ValueError):
+            pass
 
 
 def open_window(url):
@@ -1177,7 +1203,7 @@ def open_window(url):
             # Perfil próprio: o app_id da janela no Wayland inclui o nome do perfil
             # (chrome-127.0.0.1__-<perfil>); com perfil dedicado ele é sempre "Default" e
             # casa com o atalho do menu (ícone no dock). Também isola das suas extensões.
-            prof = os.path.join(CONF_DIR, 'chrome')
+            prof = _chrome_profile()
             args = [exe, f'--user-data-dir={prof}', f'--app={url}', '--no-first-run',
                     '--no-default-browser-check', '--password-store=basic']
             if not os.path.isdir(os.path.join(prof, 'Default')):
@@ -1244,6 +1270,13 @@ def main():
     port = PORT = srv.server_address[1]
     write_state()
     threading.Thread(target=watchdog, daemon=True).start()
+
+    def _bye(*_):  # kill/Ctrl+C/logout: a janela não pode sobreviver ao servidor
+        drop_state()
+        close_window()
+        os._exit(0)
+    for sg in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sg, _bye)
     if can_update():
         _upd_load()
         threading.Thread(target=update_loop, daemon=True).start()
