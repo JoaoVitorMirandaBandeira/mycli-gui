@@ -129,6 +129,9 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
 .msg b{color:var(--fg);font-variant-numeric:tabular-nums}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
 #toast.on{opacity:.92}
+#ver{font-size:12px;color:var(--mut);background:transparent;border:0;padding:0 4px;cursor:pointer}
+#ver:hover{color:var(--fg)}
+#upd{background:var(--ok);border-color:var(--ok);color:#fff}
 </style>
 </head>
 <body>
@@ -141,6 +144,8 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
   <datalist id="dbs"></datalist>
   <span id="st"><i></i><span>iniciando…</span></span>
   <span class="sp"></span>
+  <button id="upd" hidden>⬆ Nova versão disponível</button>
+  <button id="ver" class="mono" title="Clique para verificar atualizações">v…</button>
   <label class="mono" style="font-size:12.5px;color:var(--mut)">linhas máx.
     <select id="limit"><option>200</option><option selected>1000</option><option>5000</option><option>20000</option></select></label>
   <button id="hist" title="Alt+H">Histórico</button>
@@ -878,9 +883,35 @@ $('#cx').addEventListener('click',async()=>{
   if(a)await setAlias(a,'');else{S.alias='';S.tables=[];drawTables();setDbValue('')}
 });
 
+/* ---------- atualização ---------- */
+let UPD={};
+function drawUpd(r){
+  if(!r||r.error&&!r.current&&!r.latest)return;
+  UPD=r;$('#ver').textContent='v'+r.current;
+  const b=$('#upd');b.hidden=!(r.available&&r.can_update);
+  if(!b.hidden){b.textContent='⬆ Atualizar para v'+r.latest;b.title='Nova versão disponível'+(r.notes?'\n\n'+r.notes.slice(0,400):'')}
+}
+const updStatus=()=>api('/api/update/status').then(drawUpd);
+$('#ver').addEventListener('click',async()=>{
+  toast('Verificando atualizações…');
+  const r=await api('/api/update/check');drawUpd(r);
+  toast(r.available?'Nova versão: v'+r.latest:r.error?'Não foi possível verificar agora':'Você está na versão mais recente');
+});
+$('#upd').addEventListener('click',async()=>{
+  if(S.tabs.some(t=>t.results.some(r=>r.saving||r.drafts?.size)))return alert('Salve ou descarte as alterações pendentes antes de atualizar.');
+  if(!confirm('Atualizar de v'+UPD.current+' para v'+UPD.latest+'?\n\nA janela será recarregada; abas, SQL e histórico são mantidos.'+(UPD.notes?'\n\n'+UPD.notes.slice(0,600):'')))return;
+  const b=$('#upd');b.disabled=true;b.textContent='Atualizando…';
+  flush();
+  const r=await api('/api/update/apply');
+  if(r.url){if(r.error)alert(r.error);flush();location.replace(r.url);return}
+  b.disabled=false;b.textContent='⬆ Atualizar para v'+UPD.latest;
+  alert(r.error||'Não foi possível atualizar.');
+});
+
 /* ---------- início ---------- */
 (async function init(){
   setInterval(()=>api('/api/ping'),5000);api('/api/ping');
+  updStatus();setTimeout(updStatus,12000);setInterval(updStatus,15*60000);
   addEventListener('pagehide',()=>{flush();navigator.sendBeacon('/api/bye?t='+encodeURIComponent(TOKEN),'')});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
   const r=await api('/api/state/get'),stt=r.state||{},st=stt.ui||{};

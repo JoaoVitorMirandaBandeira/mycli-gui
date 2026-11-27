@@ -4,8 +4,8 @@
 Usa os aliases de ~/.myclirc ([alias_dsn]). Só escuta em 127.0.0.1, com token.
 Senhas nunca vão para a página. Encerra sozinho quando a janela é fechada.
 """
-import datetime, decimal, hashlib, hmac, json, os, re, secrets, shutil, subprocess, sys
-import threading, time, urllib.parse, urllib.request, webbrowser
+import datetime, decimal, hashlib, hmac, io, json, os, re, secrets, shutil, subprocess, sys
+import tarfile, threading, time, urllib.error, urllib.parse, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pymysql
@@ -551,6 +551,13 @@ def foreign_keys(alias, db, tables):
 def api(path, d):
     if path == '/api/ping':
         return {}
+    if path == '/api/update/status':
+        return update_status()
+    if path == '/api/update/check':
+        update_check_safe()
+        return update_status()
+    if path == '/api/update/apply':
+        return update_apply()
     if path == '/api/aliases':
         return dict(aliases=[
             dict(name=k, host=v['host'], port=v['port'], user=v['user'],
@@ -629,6 +636,316 @@ def api(path, d):
     if path == '/api/table/save':
         return save_table(alias, d.get('db'), d.get('table'), d.get('changes'))
     raise ApiError('rota desconhecida')
+
+
+# ------------------------------------------------------------ atualização ---
+# Versão nova = release do GitHub (tag vX.Y.Z) do repositório oficial. Só se baixa por HTTPS
+# de github.com, confere o SHA-256 publicado na release e só se copiam os arquivos da lista
+# fixa abaixo — nada do pacote é executado, nem o install.sh.
+REPO = 'JoaoVitorMirandaBandeira/mycli-gui'
+API_LATEST = f'https://api.github.com/repos/{REPO}/releases/latest'
+CHECK_EVERY = 6 * 3600
+VER_RE = re.compile(r'\d{1,4}\.\d{1,4}\.\d{1,4}')
+UPDATE_FILES = ('bin/my', 'my-gui/server.py', 'my-gui/index.html', 'my-gui/my-gui.svg',
+                'my-gui/VERSION')
+MAX_PACKAGE = 8_000_000
+SHARE_DIR = os.path.dirname(HTML_PATH)
+BIN_PATH = os.path.normpath(os.path.join(SHARE_DIR, '..', '..', 'bin', 'my'))
+ICON_PATH = os.path.normpath(os.path.join(SHARE_DIR, '..', 'icons', 'hicolor', 'scalable',
+                                          'apps', 'my-gui.svg'))
+UPDATE_CACHE = os.path.join(CONF_DIR, 'update.json')
+PORT = 0
+UPD = dict(latest=None, checked=0, error=None, etag=None)
+_upd_lock = threading.Lock()
+
+
+def vtuple(v):
+    return tuple(int(x) for x in v.split('.'))
+
+
+def current_version():
+    try:
+        v = open(os.path.join(SHARE_DIR, 'VERSION'), encoding='utf-8').read().strip()
+    except OSError:
+        v = ''
+    return v if VER_RE.fullmatch(v) else '0.0.0'
+
+
+def can_update():
+    """Só atualiza a instalação em ~/.local (não um checkout de desenvolvimento)."""
+    return not os.path.exists(os.path.join(SHARE_DIR, '..', '.git'))
+
+
+def _host_ok(h):
+    return h in ('github.com', 'api.github.com') or (h or '').endswith('.githubusercontent.com')
+
+
+class _SafeRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        u = urllib.parse.urlparse(newurl)
+        if u.scheme != 'https' or not _host_ok(u.hostname):
+            raise urllib.error.URLError('redirecionamento para origem não confiável')
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def fetch(url, limit, etag=None):
+    """GET por HTTPS só em github.com (e seus CDNs); devolve (bytes, etag)."""
+    u = urllib.parse.urlparse(url)
+    if u.scheme != 'https' or not _host_ok(u.hostname):
+        raise ApiError('origem de atualização não permitida')
+    headers = {'User-Agent': 'my-gui-updater', 'Accept': 'application/vnd.github+json'}
+    if etag:
+        headers['If-None-Match'] = etag
+    op = urllib.request.build_opener(_SafeRedirect)
+    with op.open(urllib.request.Request(url, headers=headers), timeout=15) as r:
+        data = r.read(limit + 1)
+        if len(data) > limit:
+            raise ApiError('arquivo de atualização grande demais')
+        return data, r.headers.get('ETag')
+
+
+def _upd_load():
+    try:
+        c = json.load(open(UPDATE_CACHE, encoding='utf-8'))
+        if isinstance(c.get('latest'), dict) and VER_RE.fullmatch(str(c['latest'].get('version'))):
+            UPD['latest'], UPD['etag'] = c['latest'], c.get('etag')
+    except (OSError, ValueError, AttributeError):
+        pass
+
+
+def _upd_save():
+    try:
+        os.makedirs(CONF_DIR, exist_ok=True)
+        tmp = UPDATE_CACHE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(dict(latest=UPD['latest'], etag=UPD['etag']), f)
+        os.replace(tmp, UPDATE_CACHE)
+    except OSError:
+        pass
+
+
+def update_check():
+    """Consulta a última release (1 requisição leve; com ETag, 304 não gasta cota da API)."""
+    try:
+        raw, etag = fetch(API_LATEST, 1_000_000, UPD['etag'] if UPD['latest'] else None)
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            UPD.update(checked=time.time(), error=None)
+            return
+        if e.code == 404:  # ainda não há release publicada
+            UPD.update(latest=None, etag=None, checked=time.time(), error=None)
+            return
+        raise
+    rel = json.loads(raw)
+    m = re.fullmatch(r'v(\d{1,4}\.\d{1,4}\.\d{1,4})', str(rel.get('tag_name', '')))
+    if not m or rel.get('draft') or rel.get('prerelease'):
+        raise ApiError('release inválida')
+    ver = m.group(1)
+    names = {a.get('name') for a in rel.get('assets') or [] if isinstance(a, dict)}
+    pkg = f'my-gui-{ver}.tar.gz'
+    if pkg not in names or pkg + '.sha256' not in names:
+        raise ApiError(f'a release v{ver} não tem os arquivos de instalação')
+    UPD.update(latest=dict(version=ver, notes=str(rel.get('body') or '')[:2000]),
+               etag=etag, checked=time.time(), error=None)
+    _upd_save()
+
+
+def update_check_safe():
+    try:
+        update_check()
+    except Exception as e:  # sem rede/VPN fora do ar: segue sem avisar
+        UPD.update(checked=time.time(), error=f'{type(e).__name__}: {e}'[:200])
+
+
+def update_loop():
+    time.sleep(5)
+    while True:
+        update_check_safe()
+        time.sleep(CHECK_EVERY)
+
+
+def update_status():
+    cur, latest = current_version(), UPD['latest']
+    return dict(current=cur, latest=latest and latest['version'],
+                notes=latest['notes'] if latest else '', checked=UPD['checked'],
+                error=UPD['error'], can_update=can_update(),
+                available=bool(latest and vtuple(latest['version']) > vtuple(cur)))
+
+
+def _targets():
+    t = {'bin/my': (BIN_PATH, 0o755)}
+    for n in UPDATE_FILES[1:]:
+        t[n] = (os.path.join(SHARE_DIR, n.split('/', 1)[1]), 0o644)
+    return t
+
+
+def _unpack(blob, ver):
+    """Lê só os arquivos esperados do .tar.gz (nunca extrai nada em disco)."""
+    out = {}
+    try:
+        with tarfile.open(fileobj=io.BytesIO(blob), mode='r:gz') as tf:
+            for m in tf:
+                name = m.name[2:] if m.name.startswith('./') else m.name
+                if name not in UPDATE_FILES:
+                    continue
+                if not m.isreg() or m.size > 4_000_000 or name in out:
+                    raise ApiError(f'pacote inválido ({name})')
+                out[name] = tf.extractfile(m).read()
+    except (tarfile.TarError, OSError, EOFError) as e:
+        raise ApiError(f'pacote ilegível: {e}')
+    missing = [n for n in UPDATE_FILES if n not in out]
+    if missing:
+        raise ApiError('pacote incompleto: faltam ' + ', '.join(missing))
+    if out['my-gui/VERSION'].decode('utf-8', 'replace').strip() != ver:
+        raise ApiError('a versão dentro do pacote não confere com a release')
+    try:
+        compile(out['my-gui/server.py'], 'server.py', 'exec')
+    except SyntaxError as e:
+        raise ApiError(f'server.py do pacote não compila: {e}')
+    if not out['bin/my'].startswith(b'#!') or b'__TOKEN__' not in out['my-gui/index.html']:
+        raise ApiError('pacote com arquivos inesperados')
+    return out
+
+
+def _backup_dir():
+    return os.path.join(SHARE_DIR, 'backup')
+
+
+def _make_backup():
+    bd = _backup_dir()
+    shutil.rmtree(bd, ignore_errors=True)
+    existed = []
+    for name, (path, _) in _targets().items():
+        if os.path.isfile(path):
+            os.makedirs(os.path.dirname(os.path.join(bd, name)), exist_ok=True)
+            shutil.copy2(path, os.path.join(bd, name))
+            existed.append(name)
+    with open(os.path.join(bd, 'manifest.json'), 'w') as f:
+        json.dump(dict(version=current_version(), existed=existed), f)
+
+
+def _write(path, data, mode):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + '.new'
+    with open(tmp, 'wb') as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def restore_backup():
+    bd = _backup_dir()
+    man = json.load(open(os.path.join(bd, 'manifest.json')))
+    for name, (path, mode) in _targets().items():
+        if name in man['existed']:
+            _write(path, open(os.path.join(bd, name), 'rb').read(), mode)
+        elif os.path.exists(path):
+            os.remove(path)
+    if os.path.isdir(os.path.dirname(ICON_PATH)):
+        _write(ICON_PATH, open(os.path.join(SHARE_DIR, 'my-gui.svg'), 'rb').read(), 0o644)
+    return man['version']
+
+
+def _install(files):
+    _make_backup()
+    try:
+        for name, (path, mode) in _targets().items():
+            _write(path, files[name], mode)
+        if os.path.isdir(os.path.dirname(ICON_PATH)):
+            _write(ICON_PATH, files['my-gui/my-gui.svg'], 0o644)
+    except Exception:
+        restore_backup()
+        raise
+
+
+def _spawn_server():
+    """Sobe um servidor (sem abrir janela) a partir dos arquivos instalados."""
+    os.makedirs(STATE_DIR, exist_ok=True)
+    log = open(os.path.join(STATE_DIR, 'log'), 'ab')
+    env = dict(os.environ, MY_GUI_NO_OPEN='1')
+    p = subprocess.Popen([sys.executable, '-I', os.path.join(SHARE_DIR, 'server.py')], env=env,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=log,
+                         start_new_session=True)
+    deadline = time.time() + 15
+    while time.time() < deadline and p.poll() is None:
+        try:
+            st = json.load(open(STATE_FILE))
+            if st.get('pid') == p.pid:
+                req = urllib.request.Request(f"http://127.0.0.1:{st['port']}/api/ping",
+                                             headers={'X-Token': st['token']})
+                urllib.request.urlopen(req, timeout=1.5).read()
+                return st
+        except Exception:
+            pass
+        time.sleep(0.25)
+    if p.poll() is None:
+        p.terminate()
+    return None
+
+
+def write_state():
+    os.makedirs(STATE_DIR, exist_ok=True)
+    fd = os.open(STATE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        json.dump(dict(port=PORT, token=TOKEN, pid=os.getpid(), ver=code_version()), f)
+
+
+def drop_state():
+    """Remove o instance.json só se ele ainda for deste processo."""
+    try:
+        if json.load(open(STATE_FILE)).get('pid') == os.getpid():
+            os.remove(STATE_FILE)
+    except (OSError, ValueError):
+        pass
+
+
+def _handoff(ok_msg):
+    """Troca para o servidor recém-instalado; devolve a URL para a janela recarregar."""
+    drop_state()  # senão o servidor novo trataria este como "instância antiga" e o mataria
+    st = _spawn_server()
+    if not st:
+        return None
+    threading.Timer(2.0, os._exit, (0,)).start()  # a janela já terá a resposta
+    return dict(ok=True, message=ok_msg, version=current_version(),
+                url=f"http://127.0.0.1:{st['port']}/?t={st['token']}")
+
+
+def update_apply():
+    if not _upd_lock.acquire(blocking=False):
+        raise ApiError('Já existe uma atualização em andamento')
+    try:
+        if not can_update():
+            raise ApiError('Esta cópia não é a instalada em ~/.local; atualize com git pull + ./install.sh')
+        update_check_safe()
+        latest, cur = UPD['latest'], current_version()
+        if not latest or vtuple(latest['version']) <= vtuple(cur):
+            raise ApiError('Você já está na versão mais recente')
+        ver = latest['version']
+        base = f'https://github.com/{REPO}/releases/download/v{ver}/my-gui-{ver}.tar.gz'
+        try:
+            blob, _ = fetch(base, MAX_PACKAGE)
+            want = fetch(base + '.sha256', 4096)[0].decode('ascii', 'replace').split()
+        except urllib.error.URLError as e:
+            raise ApiError(f'Falha ao baixar a atualização: {e.reason if hasattr(e, "reason") else e}')
+        if not want or not re.fullmatch(r'[0-9a-f]{64}', want[0]):
+            raise ApiError('arquivo .sha256 inválido')
+        if not hmac.compare_digest(hashlib.sha256(blob).hexdigest(), want[0]):
+            raise ApiError('SHA-256 do pacote não confere; nada foi instalado')
+        _install(_unpack(blob, ver))
+        res = _handoff(f'Atualizado para v{ver}')
+        if res:
+            return res
+        # o servidor novo não subiu: volta a versão anterior
+        restore_backup()
+        res = _handoff(f'A v{ver} não iniciou; voltei para v{cur}')
+        if res:
+            return dict(res, ok=False, error=res['message'])
+        write_state()
+        raise ApiError(f'A v{ver} não iniciou e a volta falhou; rode: python3 {os.path.join(SHARE_DIR, "server.py")} --rollback')
+    finally:
+        _upd_lock.release()
 
 
 # ------------------------------------------------------------------- http ---
@@ -716,10 +1033,7 @@ def watchdog():
         time.sleep(2)
         now = time.time()
         if (bye_at and now > bye_at) or now - last_ping > (300 if seen else 120):
-            try:
-                os.remove(STATE_FILE)
-            except OSError:
-                pass
+            drop_state()
             os._exit(0)
 
 
@@ -749,7 +1063,7 @@ def code_version():
     """Hash dos arquivos instalados: detecta servidor antigo ainda rodando após uma atualização."""
     h = hashlib.sha1()
     d = os.path.dirname(HTML_PATH)
-    for n in ('server.py', 'index.html', 'my-gui.svg'):
+    for n in ('server.py', 'index.html', 'my-gui.svg', 'VERSION'):
         try:
             h.update(open(os.path.join(d, n), 'rb').read())
         except OSError:
@@ -783,7 +1097,14 @@ def existing_instance():
 
 
 def main():
+    global PORT
     alias = sys.argv[1] if len(sys.argv) > 1 else ''
+    if alias == '--rollback':
+        try:
+            print('Restaurado para a v' + restore_backup())
+        except (OSError, ValueError, KeyError):
+            sys.exit('Não há backup para restaurar.')
+        return
     extra = '&a=' + urllib.parse.quote(alias) if alias else ''
     st = existing_instance()
     if st:
@@ -791,12 +1112,12 @@ def main():
         return
     srv = ThreadingHTTPServer(('127.0.0.1', 0), H)
     srv.daemon_threads = True
-    port = srv.server_address[1]
-    os.makedirs(STATE_DIR, exist_ok=True)
-    fd = os.open(STATE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'w') as f:
-        json.dump(dict(port=port, token=TOKEN, pid=os.getpid(), ver=code_version()), f)
+    port = PORT = srv.server_address[1]
+    write_state()
     threading.Thread(target=watchdog, daemon=True).start()
+    if can_update():
+        _upd_load()
+        threading.Thread(target=update_loop, daemon=True).start()
     open_window(f'http://127.0.0.1:{port}/?t={TOKEN}{extra}')
     srv.serve_forever()
 
