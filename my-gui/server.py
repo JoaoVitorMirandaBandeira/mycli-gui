@@ -5,7 +5,7 @@ Usa os aliases de ~/.myclirc ([alias_dsn]). Só escuta em 127.0.0.1, com token.
 Senhas nunca vão para a página. Encerra sozinho quando a janela é fechada.
 """
 import datetime, decimal, hashlib, hmac, io, json, os, re, secrets, shutil, subprocess, sys
-import tarfile, threading, time, urllib.error, urllib.parse, urllib.request, webbrowser
+import ssl, tarfile, threading, time, urllib.error, urllib.parse, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pymysql
@@ -50,6 +50,8 @@ def load_aliases():
                 host=u.hostname or 'localhost', port=u.port or 3306,
                 user=urllib.parse.unquote(u.username or ''),
                 password=urllib.parse.unquote(u.password) if u.password is not None else None,
+                # sem "?ssl=true" no DSN o SSL fica desligado (comportamento de sempre)
+                ssl=urllib.parse.parse_qs(u.query).get('ssl', [''])[0].lower() == 'true',
                 db=(u.path or '').lstrip('/') or None)
     return out
 
@@ -155,6 +157,16 @@ def alias_args(d):
     return name, host, port, d.get('user') or '', pw
 
 
+def ssl_kwargs(on):
+    """SSL ligado: como o --ssl-mode auto do mycli (criptografa, sem validar o certificado)."""
+    if not on:
+        return {}
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return dict(ssl=ctx)
+
+
 # ------------------------------------------------------------------- pool ---
 class Pool:
     """Conexões por alias: 'main' (consultas do usuário), 'meta' (árvore e autocomplete)
@@ -196,7 +208,7 @@ class Pool:
                 host=al['host'], port=al['port'], user=al['user'], password=pw,
                 database=al['db'], connect_timeout=8, read_timeout=read_timeout,
                 autocommit=True, charset='utf8mb4',
-                cursorclass=pymysql.cursors.SSCursor)
+                cursorclass=pymysql.cursors.SSCursor, **ssl_kwargs(al['ssl']))
         except pymysql.MySQLError as e:
             if e.args and e.args[0] == 1045 and alias in self.pw:
                 del self.pw[alias]
@@ -627,7 +639,7 @@ def api(path, d):
     if path == '/api/aliases':
         return dict(aliases=[
             dict(name=k, host=v['host'], port=v['port'], user=v['user'],
-                 db=v['db'] or '')
+                 ssl=v['ssl'], db=v['db'] or '')
             for k, v in load_aliases().items()])
     if path == '/api/state/get':
         return dict(state=state_get())
@@ -638,7 +650,7 @@ def api(path, d):
         name, host, port, user, pw = alias_args(d)
         q = lambda s: urllib.parse.quote(s, safe='')
         auth = q(user) + (':' + q(pw) if pw else '')
-        edit_alias(name, f'{name} = mysql://{auth}@{host}:{port}/')
+        edit_alias(name, f'{name} = mysql://{auth}@{host}:{port}/?ssl={"true" if bool(d.get("ssl")) else "false"}')
         pool.drop(name); pool.pw.pop(name, None)
         return dict(name=name)
     if path == '/api/alias/delete':
@@ -655,7 +667,8 @@ def api(path, d):
         t0 = time.time()
         try:
             c = pymysql.connect(host=host, port=port, user=user, password=pw,
-                                connect_timeout=6, read_timeout=8)
+                                connect_timeout=6, read_timeout=8,
+                                **ssl_kwargs(bool(d.get('ssl'))))
             ver = c.get_server_info()
             c.close()
         except pymysql.MySQLError as e:

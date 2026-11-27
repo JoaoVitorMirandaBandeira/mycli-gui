@@ -25,7 +25,7 @@ my
 
 **2. Adicione sua conexão** (só na primeira vez): clique em **＋** ao lado da lista de conexões, preencha nome, host, porta, usuário e senha, clique em **Testar** e depois em **Salvar**. Para mudar ou apagar uma conexão use o **✎**.
 
-Prefere o terminal? `my -a` faz a mesma pergunta por lá. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
+Prefere o terminal? `my -a` faz a mesma pergunta por lá. O SSL é por conexão (caixa **Usar SSL**, ou `?ssl=true` no alias do `~/.myclirc`); desmarcado, o `my` roda o mycli com `--ssl-mode off`, que é o padrão para evitar o erro dos mycli novos com servidores sem SSL. Quer trazer as do DBeaver? Rode `python3 tools/import_dbeaver.py`.
 
 Depois escolha o banco no topo, clique numa tabela à esquerda ou escreva a consulta e aperte **Ctrl+Enter**.
 

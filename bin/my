@@ -20,7 +20,9 @@ if [ "$1" = "-a" ]; then
   read -r -p 'Porta [3306]: ' port;         port="${port:-3306}"
   read -r -p 'Usuário: ' user
   read -r -s -p 'Senha (vazio = perguntar ao conectar): ' pass; echo
-  MY_NAME="$name" MY_HOST="$host" MY_PORT="$port" MY_USER="$user" MY_PASS="$pass" MY_CFG="$cfg" \
+  read -r -p 'Usar SSL? [s/N]: ' ssl
+  case "$ssl" in [sSyY]*) ssl=true ;; *) ssl=false ;; esac
+  MY_NAME="$name" MY_HOST="$host" MY_PORT="$port" MY_USER="$user" MY_PASS="$pass" MY_SSL="$ssl" MY_CFG="$cfg" \
   python3 -I - <<'PY'
 import os, re, sys, urllib.parse
 e = os.environ
@@ -29,7 +31,7 @@ if not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
     sys.exit("Nome inválido: use só letras, números, _ . -")
 q = lambda s: urllib.parse.quote(s, safe='')
 auth = q(e['MY_USER']) + (':' + q(e['MY_PASS']) if e['MY_PASS'] else '')
-line = f"{name} = mysql://{auth}@{e['MY_HOST']}:{e['MY_PORT']}/"
+line = f"{name} = mysql://{auth}@{e['MY_HOST']}:{e['MY_PORT']}/?ssl={e['MY_SSL']}"
 lines = open(cfg).read().splitlines() if os.path.exists(cfg) else []
 out, inside, done = [], False, False
 for l in lines:
@@ -82,7 +84,11 @@ if [ -z "$sel" ]; then
   fi
 fi
 shift 2>/dev/null
-# mycli 1.54: "-d alias" está quebrado; alias posicional funciona. Servidores recusam SSL -> off.
+# mycli 1.54: "-d alias" está quebrado; alias posicional funciona.
+# SSL por conexão: só liga com "?ssl=true" no alias; sem isso (ou ssl=false) vai --ssl-mode off,
+# pois vários servidores recusam SSL com os mycli novos.
+ssl=(--ssl-mode off)
+awk -v n="$sel" '/^\[/{f=($0 ~ /^\[alias_dsn\]/);next} f && /=/ {k=$0; sub(/[ \t]*=.*/,"",k); sub(/^[ \t]+/,"",k); if(k==n && tolower($0) ~ /[?&]ssl=true/) found=1} END{exit !found}' "$cfg" 2>/dev/null && ssl=()
 db=()
 [ -n "$1" ] && case "$1" in -*) ;; *) db=(--init-command "use \`$1\`"); shift ;; esac
-exec mycli --ssl-mode off "${db[@]}" "$@" "$sel"
+exec mycli "${ssl[@]}" "${db[@]}" "$@" "$sel"

@@ -121,6 +121,7 @@ dialog input{width:calc(100% - 24px);margin:12px}
 #cf h3{margin:0 0 4px}
 #cf label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mut);flex:1}
 #cf input{width:100%;margin:0;color:var(--fg)}
+#cf label.chk{flex-direction:row;align-items:center;gap:6px;flex:none}#cf label.chk input{width:auto}
 #cf .row{display:flex;gap:10px}#cf .sm{flex:0 0 100px}
 #cf .cb{display:flex;gap:8px;margin-top:6px}
 #cm{min-height:1.3em;font-size:13px;white-space:pre-wrap}#cm.ok{color:var(--ok)}#cm.bad{color:var(--err)}
@@ -172,6 +173,7 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
   <div class="row"><label>Host / IP<input id="ch" placeholder="10.0.0.5" required></label><label class="sm">Porta<input id="cp" type="number" min="1" max="65535" value="3306"></label></div>
   <label>Usuário<input id="cu" autocomplete="off"></label>
   <label>Senha<input id="cw" type="password" autocomplete="new-password"></label>
+  <label class="chk"><input id="cs" type="checkbox"> Usar SSL <small>(desmarcado = <code>--ssl-mode off</code>; use se o servidor exigir SSL)</small></label>
   <div id="cm"></div>
   <div class="cb"><button type="button" id="cx" class="danger">Excluir</button><span class="sp"></span><button type="button" id="ctest">Testar</button><button type="button" id="cc">Cancelar</button><button type="submit" class="pri">Salvar</button></div>
 </form></dialog>
@@ -893,13 +895,13 @@ function openConn(edit){
   CD.edit=!!a;
   $('#ct').textContent=a?`Editar conexão “${a.name}”`:'Nova conexão';
   $('#cn').value=a?a.name:'';$('#cn').readOnly=!!a;
-  $('#ch').value=a?a.host:'';$('#cp').value=a?a.port:3306;$('#cu').value=a?a.user:'';$('#cw').value='';
+  $('#ch').value=a?a.host:'';$('#cp').value=a?a.port:3306;$('#cu').value=a?a.user:'';$('#cw').value='';$('#cs').checked=!!(a&&a.ssl);
   $('#cw').placeholder=a?'(em branco = manter a atual)':'(em branco = perguntar ao conectar)';
   $('#cx').style.display=a?'':'none';
   cmsg('');$('#cd').showModal();(a?$('#ch'):$('#cn')).focus();
 }
 function cmsg(t,k){const e=$('#cm');e.textContent=t;e.className=k||''}
-const cbody=()=>({name:$('#cn').value.trim(),host:$('#ch').value.trim(),port:+$('#cp').value||3306,user:$('#cu').value,password:(CD.edit&&!$('#cw').value)?null:$('#cw').value});
+const cbody=()=>({name:$('#cn').value.trim(),host:$('#ch').value.trim(),port:+$('#cp').value||3306,user:$('#cu').value,ssl:$('#cs').checked,password:(CD.edit&&!$('#cw').value)?null:$('#cw').value});
 $('#ca').addEventListener('click',()=>openConn(false));
 $('#ce').addEventListener('click',()=>openConn(true));
 $('#cc').addEventListener('click',()=>$('#cd').close());
