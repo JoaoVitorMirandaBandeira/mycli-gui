@@ -130,6 +130,8 @@ dialog input{width:calc(100% - 24px);margin:12px}
 #kd h4{margin:12px 0 4px;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;break-after:avoid}
 #kd .kr{display:flex;justify-content:space-between;gap:12px;padding:3px 0;break-inside:avoid}
 #kd .kr span{white-space:nowrap}
+#kd .kr span:first-child{white-space:normal}
+#kd{overflow-x:hidden}
 #ad{width:min(560px,92vw)}
 #ad .ab{padding:14px 18px}
 #ad h3{margin:0 0 4px;font-size:16px}
@@ -164,6 +166,143 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
 #ver{font-size:12px;color:var(--mut);background:transparent;border:0;padding:0 4px;cursor:pointer}
 #ver:hover{color:var(--fg)}
 #upd{background:var(--ok);border-color:var(--ok);color:#fff}
+/* plano de execução (Visual Explain) */
+:root{--a-blue:#2f6fed;--a-green:#23905a;--a-yellow:#a98a00;--a-orange:#dd6f00;--a-red:#d23a3a;--a-gray:#6f7a8a;--pv-edge:#a3abb8;--pv-node:#fff;--pv-hot:#e79a9a}
+@media (prefers-color-scheme:dark){:root{--a-blue:#4f8bff;--a-green:#33b073;--a-yellow:#c9a91a;--a-orange:#f08a2a;--a-red:#f05a5a;--a-gray:#7d8797;--pv-edge:#56606f;--pv-node:#1e232b;--pv-hot:#8f4747}}
+.pblk{height:100%;display:flex;flex-direction:column;margin:0}
+.pblk .bh{flex-wrap:nowrap}
+.pblk .bh .q{flex:1 1 0;max-width:none;min-width:40px}
+.pblk .bh .meta{overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.pblk .bh>*:not(.q):not(.meta){flex:none}
+.pv-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex:none}
+.pv-seg button{border:0;border-radius:0;background:var(--bg);padding:3px 10px}
+.pv-seg button+button{border-left:1px solid var(--line)}
+.pv-seg button.on{background:var(--acc);color:var(--accfg)}
+.pv-color{padding:3px 6px;font-size:12.5px}
+.pv-zoom{display:inline-flex;align-items:center;gap:2px}
+.pv-zoom button{padding:3px 8px}
+.pv-zl{min-width:42px;text-align:center;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.pv-ins{display:flex;gap:8px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid var(--line);flex:none;align-items:flex-start}
+.pv-instg{flex:none;align-self:center;padding:3px 9px;font-size:12px;white-space:nowrap}
+.pv-ins.open .pv-instg{align-self:flex-start}
+.pv-ins:not(.open){padding:6px 12px;align-items:center}
+.pv-ins:not(.open) .pv-ic{width:auto;max-width:340px;padding:4px 10px 4px 8px;align-items:center;gap:7px}
+.pv-ins:not(.open) .pv-ic b{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
+.pv-ins:not(.open) .pv-ic>div{min-width:0}
+.pv-ins:not(.open) .pv-ic p{display:none}
+.pv-ins:not(.open) .pv-sv{width:17px;height:17px;font-size:11px;line-height:17px}
+.pv-ic{flex:none;width:300px;display:flex;gap:9px;padding:7px 10px;border:1px solid var(--line);border-left:4px solid var(--sev);border-radius:8px;background:var(--bg);cursor:pointer;font-size:12.5px}
+.pv-ic:hover{border-color:var(--sev);background:var(--bg2)}
+.pv-ic b{display:block;font-size:13px;margin-bottom:2px}
+.pv-ic p{margin:0;color:var(--mut)}
+.pv-ic .pv-go{color:var(--acc);margin-top:3px}
+.pv-sv{flex:none;width:20px;height:20px;border-radius:50%;background:var(--sev);color:#fff;font:700 12px/20px system-ui;text-align:center}
+.pv-body{flex:1;display:flex;min-height:0}
+.pv-cv{flex:1;position:relative;overflow:hidden;background-color:var(--bg);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;cursor:grab;outline:none;min-width:0}
+.pv-cv.drag{cursor:grabbing}
+.pv-cv>svg{position:absolute;inset:0;width:100%;height:100%;user-select:none}
+.pv-view{flex:1;overflow:auto;display:none;min-width:0}
+.pv-nd{cursor:pointer}
+.pv-nd text{font-size:12px;fill:var(--fg)}
+.pv-bx{fill:var(--pv-node);stroke:var(--line);stroke-width:1;filter:drop-shadow(0 1px 2px #0002)}
+.pv-nd:hover .pv-bx{stroke:var(--acc)}
+.pv-nd.sel .pv-bx,.pv-nd.sel .pv-dm{stroke:var(--acc)!important;stroke-width:2.5!important}
+.pv-nd .pv-bl{fill:#fff;font-size:11px;font-weight:700}
+.pv-nd .pv-nm{font-size:13.5px;font-weight:700}
+.pv-nd .pv-al,.pv-nd .pv-mt{fill:var(--mut);font-weight:400}
+.pv-nd .pv-ky{fill:var(--mut);font-family:ui-monospace,monospace;font-size:11px}
+.pv-nd .pv-ft{font-size:11.5px;font-variant-numeric:tabular-nums}
+.pv-heatbg{fill:var(--bg3)}
+.pv-nd .pv-op{font-size:12.5px;font-weight:700}
+.pv-nd .pv-fl{fill:var(--warn);font-size:11px}
+.pv-blk{fill:var(--fg)}
+.pv-nd .pv-blkt{fill:var(--bg);font-weight:700}
+.pv-nd .pv-blks{fill:var(--bg);opacity:.75;font-size:11px}
+.pv-dm{fill:var(--pv-node);stroke:var(--mut);stroke-width:1.5}
+.pv-nd .pv-dml{fill:var(--mut);font-size:11px}
+.pv-nd .pv-dmi{font-size:15px;font-weight:700}
+.pv-pill{fill:var(--bg2);stroke:var(--line)}
+.pv-pillt{font-size:10.5px;fill:var(--mut);font-variant-numeric:tabular-nums}
+.pv-eg{fill:none;stroke:var(--pv-edge);stroke-linejoin:round}
+.pv-eg.sub{stroke-dasharray:6 5}
+.pv-eg.hot{stroke:var(--pv-hot)}
+.pv-ah{fill:var(--pv-edge);stroke:none;stroke-dasharray:none}
+.pv-ah.hot{fill:var(--pv-hot)}
+.pv-frame{fill:color-mix(in srgb,var(--acc) 4%,transparent);stroke:var(--mut);stroke-dasharray:5 5}
+.pv-framet{fill:var(--mut);font-size:11px;font-weight:600}
+#pvtip{position:fixed;z-index:70;pointer-events:none;background:var(--bg2);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px #0004;padding:8px 10px;font-size:12.5px;max-width:340px;display:none}
+#pvtip b{display:block}#pvtip .h{color:var(--mut)}#pvtip .r{display:flex;justify-content:space-between;gap:16px}
+.pv-leg{position:absolute;left:10px;top:10px;background:color-mix(in srgb,var(--bg2) 92%,transparent);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11.5px;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+.pv-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.pv-heat{width:140px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--a-green),var(--a-yellow),var(--a-orange),var(--a-red))}
+.pv-lr{display:flex;justify-content:space-between;color:var(--mut)}
+.pv-mini{position:absolute;right:10px;bottom:10px;width:170px;height:110px;background:color-mix(in srgb,var(--bg2) 92%,transparent);border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:pointer}
+.pv-mini svg{width:100%;height:100%}
+.pv-vpr{fill:color-mix(in srgb,var(--acc) 12%,transparent);stroke:var(--acc);stroke-width:1.5}
+.pv-det{width:330px;border-left:1px solid var(--line);background:var(--bg2);overflow:auto;flex:none;position:relative;font-size:12.5px}
+.pv-det h3{margin:0;padding:12px 34px 2px 14px;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pv-det h3 small{color:var(--mut);font-weight:400}
+.pv-x{position:absolute;right:8px;top:8px;border:0;background:transparent;padding:0 6px;font-size:16px;color:var(--mut)}
+.pv-acc{color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px}
+.pv-hint{padding:0 14px 8px;color:var(--mut)}
+.pv-det h4{margin:12px 14px 4px;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.pv-det table{width:calc(100% - 28px);margin:0 14px;border-collapse:collapse}
+.pv-det td{padding:2px 0;vertical-align:top}
+.pv-det td:first-child{color:var(--mut);white-space:nowrap;padding-right:12px;width:1%}
+.pv-det td:last-child{font-variant-numeric:tabular-nums;word-break:break-word}
+.pv-det pre{margin:0 14px;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;white-space:pre-wrap;word-break:break-word}
+.pv-rawd{margin:12px 14px 14px}
+.pv-rawd summary{cursor:pointer;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.pv-det .pv-rawd pre{margin:6px 0 0;max-height:320px;overflow:auto;white-space:pre}
+.pv-tip2{margin:6px 14px;padding:8px 10px;border-left:3px solid var(--sev,var(--acc));background:var(--bg);border-radius:4px}
+.pv-tip2 pre{margin:6px 0!important}
+.pv-codew{margin:4px 14px 6px}
+.pv-tip2 .pv-codew{margin:6px 0}
+.pv-code{border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden}
+.pv-code .cm-editor{font-size:12.5px;max-height:340px}
+.pv-code .cm-editor.cm-focused{outline:none}
+.pv-code .cm-scroller{font-family:ui-monospace,"JetBrains Mono","DejaVu Sans Mono",Menlo,monospace;line-height:1.5}
+.pv-code .cm-content{padding:6px 0}
+.pv-code .cm-line{padding:0 10px}
+.pv-codeb{display:flex;gap:6px;margin-top:5px}
+.pv-cnt{opacity:.75;font-size:11.5px}
+.pv-rw{margin:12px;padding:12px 14px;border:1px solid var(--line);border-left:4px solid var(--a-green);border-radius:8px;background:var(--bg2)}
+.pv-rw.flat,.pv-rw.wait{border-left-color:var(--line)}
+.pv-rw.flat{opacity:.8}
+.pv-rw h3{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pv-rw p{margin:0 0 6px;color:var(--mut);font-size:12.5px;max-width:110ch}
+.pv-rw .pv-cav{color:var(--warn)}
+.pv-rw h4{margin:6px 0 4px;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.pv-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:1100px){.pv-cols{grid-template-columns:1fr}}
+.pv-badge{font-size:11.5px;font-weight:600;border:1px solid var(--line);border-radius:10px;padding:1px 8px;color:var(--mut);background:var(--bg)}
+.pv-badge.ok{color:#fff;background:var(--a-green);border-color:var(--a-green)}
+.pv-badge.bad{color:var(--a-red);border-color:var(--a-red)}
+.pv-kind{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--acc);border:1px solid var(--acc);border-radius:4px;padding:0 5px}
+.pv-sughead{display:flex;align-items:center;gap:8px;margin:12px 12px 0;color:var(--mut);font-size:12.5px}
+.pv-sughead b{color:var(--fg)}
+.pv-badge a{color:var(--acc)}
+.pv-view .pv-code .cm-editor{max-height:420px}
+.pv-codeb button{padding:1px 8px;font-size:12px}
+.pv-tip2 button{padding:1px 8px;font-size:12px}
+.pv-empty{padding:14px;color:var(--mut);line-height:1.5}
+.pv-empty b{color:var(--fg)}
+.pv-mt{color:var(--mut)}
+.pv-w{color:var(--warn)}
+.pv-bar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:3px;min-width:50px}
+.pv-bar i{display:block;height:100%}
+.pv-pct{display:flex;align-items:center;gap:6px;min-width:150px}.pv-pct .pv-bar{flex:1;margin:0}
+.pv-chips{display:flex;flex-wrap:wrap;gap:4px;padding:0 14px}
+.pv-chip{font-size:11px;border:1px solid var(--line);border-radius:10px;padding:0 7px;background:var(--bg)}
+.pv-chip.w{border-color:var(--warn);color:var(--warn)}
+.pv-tn{display:inline-flex;align-items:center;gap:6px}
+.pv-tn i{width:9px;height:9px;border-radius:2px;flex:none}
+.pv-view table.g th{top:0}
+.pv-view tr[data-id],.pv-view tr[data-t]{cursor:pointer}
+.pv-rawbar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg)}
+.pv-raw{margin:0;padding:12px 16px;white-space:pre;line-height:1.5}
+.pv-raw .k{color:var(--acc)}.pv-raw .s{color:var(--ok)}.pv-raw .n{color:var(--warn)}
+@media (max-width:980px){.pv-det{display:none;position:absolute;right:0;top:0;bottom:0;z-index:4;box-shadow:-8px 0 24px #0003}.pv-det.show{display:block}.pv-body{position:relative}}
 </style>
 </head>
 <body>
@@ -183,7 +322,7 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
   <button id="hist" title="Alt+H">Histórico</button>
   <button id="kb" title="Atalhos de teclado (F1)">⌨</button>
   <button id="ab" title="Sobre o my-gui e contribuintes">ⓘ</button>
-  <button id="run" class="pri" title="Executar seleção ou query sob o cursor (Ctrl+Enter ou F5). Script inteiro: Ctrl+Shift+Enter.">▶ Executar <kbd>Ctrl+↵</kbd></button>
+  <button id="run" class="pri" title="Executar seleção ou query sob o cursor (Ctrl+Enter ou F5). Script inteiro: Ctrl+Shift+Enter. Plano de execução, sem executar: Ctrl+E.">▶ Executar <kbd>Ctrl+↵</kbd></button>
 </header>
 <div id="main">
   <aside id="side">
@@ -220,6 +359,7 @@ tr.more td{text-align:center;color:var(--mut);background:var(--bg2)!important;cu
 </form></dialog>
 <div id="ac"></div>
 <div id="toast"></div>
+<div id="pvtip"></div>
 <!-- BEGIN SQL EDITOR BUNDLE -->
 <script>
 /*!
@@ -445,7 +585,7 @@ $('#tabs').addEventListener('click',e=>{
   const t=e.target.closest('.tab');if(t)switchTab(+t.dataset.i);
 });
 // Ctrl+W é reservado pelo Chrome (fecharia a janela); o Keyboard Lock pede que ele entregue a tecla à página.
-try{navigator.keyboard?.lock?.(['KeyW','KeyT','Tab','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9']).catch(()=>{})}catch(_){}
+try{navigator.keyboard?.lock?.(['KeyW','KeyT','KeyE','Tab','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9']).catch(()=>{})}catch(_){}
 $('#tabs').addEventListener('auxclick',e=>{const t=e.target.closest('.tab[data-i]');if(t&&e.button===1)closeTab(+t.dataset.i)});
 document.addEventListener('keydown',e=>{
   if(e.defaultPrevented)return;
@@ -455,6 +595,7 @@ document.addEventListener('keydown',e=>{
   if(e.altKey&&e.key==='ArrowLeft'&&cur()?.back.length){e.preventDefault();goBack()}
   if(e.altKey&&e.key.toLowerCase()==='h'){e.preventDefault();openHist()}
   if(e.key==='F1'){e.preventDefault();openKeys()}
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='e'){e.preventDefault();explain()}
   if((e.ctrlKey||e.metaKey)&&!e.altKey){
     if(e.key==='Tab'){e.preventDefault();stepTab(e.shiftKey?-1:1)}
     else if(e.key.toLowerCase()==='t'){e.preventDefault();if(e.shiftKey)reopenTab();else{newTab();editor.focus()}}
@@ -462,9 +603,9 @@ document.addEventListener('keydown',e=>{
   }
 });
 const KEYS=[
-  ['Executar',[['Executar seleção ou consulta sob o cursor','Ctrl+Enter / F5'],['Executar o script inteiro','Ctrl+Shift+Enter'],['Cancelar execução','Esc'],['Sugestões de tabela/coluna','Ctrl+Espaço']]],
+  ['Executar',[['Executar seleção ou consulta sob o cursor','Ctrl+Enter / F5'],['Executar o script inteiro','Ctrl+Shift+Enter'],['Cancelar execução','Esc'],['Plano de execução visual (não executa)','Ctrl+E'],['Sugestões de tabela/coluna','Ctrl+Espaço']]],
   ['Abas',[['Nova aba','Ctrl+T / Alt+N'],['Fechar aba','Ctrl+W / Alt+W'],['Reabrir aba fechada','Ctrl+Shift+T'],['Próxima / anterior','Ctrl+Tab / Ctrl+Shift+Tab'],['Ir para a aba 1…8 (9 = última)','Ctrl+1…9'],['Voltar na navegação de FK','Alt+←']]],
-  ['Editor',[['Comentar/descomentar linha','Ctrl+/'],['Desfazer / refazer','Ctrl+Z / Ctrl+Shift+Z']]],
+  ['Editor',[['Formatar SQL','Ctrl+Shift+F'],['Comentar/descomentar linha','Ctrl+/'],['Desfazer / refazer','Ctrl+Z / Ctrl+Shift+Z']]],
   ['Geral',[['Histórico de consultas','Alt+H'],['Esta ajuda','F1'],['Copiar valor de uma célula','Ctrl+clique'],['Abrir FK em nova aba','Ctrl+clique no ↗']]]
 ];
 function openKeys(){
@@ -615,12 +756,14 @@ function renderRes(){
   const t=cur(),box=$('#res');
   moreObs.disconnect();
   if(t.running){box.innerHTML=`<div class="msg">Executando… <b>${((Date.now()-t.t0)/1000).toFixed(1)} s</b><br><br><small>Esc cancela</small></div>`;return}
-  if(!t.results.length&&!t.error){box.innerHTML='<div class="msg">Escreva uma consulta e pressione <kbd>Ctrl</kbd> + <kbd>Enter</kbd><br><br>Clique numa tabela à esquerda para ver o conteúdo.</div>';return}
+  if(!t.results.length&&!t.error){box.innerHTML='<div class="msg">Escreva uma consulta e pressione <kbd>Ctrl</kbd> + <kbd>Enter</kbd><br><br>Clique numa tabela à esquerda para ver o conteúdo.<br><br><kbd>Ctrl</kbd> + <kbd>E</kbd> mostra o plano de execução, sem executar.</div>';return}
   const cr=t.back.length&&t.results.findIndex(r=>r.columns.length)<0?`<div class="crumb">${backBtn(t)}</div>`:'';
   box.innerHTML=cr+t.results.map(blk).join('')+(t.error?`<div class="err">${esc(t.error)}</div>`:'');
   observeMore(box);
+  box.querySelectorAll('.pblk').forEach(el=>PlanView.mount(el,t.results[+el.dataset.i]));
 }
 function blk(r,i){
+  if(r.plan)return PlanView.html(r,i);
   const q=esc(r.sql.replace(/\s+/g,' ').slice(0,140));
   if(!r.columns.length)return `<div class="blk ok"><div class="bh"><span class="q">${q}</span><span class="sp"></span><span class="meta">OK · ${r.affected} linha(s) afetada(s) · ${fmtMs(r.ms)}</span></div></div>`;
   const n=r.rows.length;
@@ -1099,6 +1242,14 @@ const tableHighlight=ViewPlugin.fromClass(class {
     return Decoration.set(marks,true);
   }
 },{decorations:plugin=>plugin.decorations});
+const sqlHighlight=syntaxHighlighting(HighlightStyle.define([
+  {tag:[tags.keyword,tags.bool,tags.null,tags.typeName],class:'tk'},
+  {tag:tags.string,class:'ts'},
+  {tag:tags.number,class:'tn'},
+  {tag:tags.comment,class:'tc'},
+  {tag:tags.standard(tags.name),class:'tf'},
+  {tag:tags.special(tags.string),class:'ti'}
+]));
 const editorExtensions=[
   EditorView.domEventHandlers({keydown:editorKeydown,mousedown:acClose,scroll:acClose,blur:acClose}),
   MySQL.language,tableNames,tableHighlight,history(),keymap.of([...defaultKeymap,...historyKeymap,...foldKeymap]),
@@ -1121,14 +1272,7 @@ const editorExtensions=[
     });
     return effects.length?{effects}:null;
   }),
-  syntaxHighlighting(HighlightStyle.define([
-    {tag:[tags.keyword,tags.bool,tags.null,tags.typeName],class:'tk'},
-    {tag:tags.string,class:'ts'},
-    {tag:tags.number,class:'tn'},
-    {tag:tags.comment,class:'tc'},
-    {tag:tags.standard(tags.name),class:'tf'},
-    {tag:tags.special(tags.string),class:'ti'}
-  ])),
+  sqlHighlight,
   EditorState.tabSize.of(2),
   EditorView.contentAttributes.of({'aria-label':'Editor SQL',spellcheck:'false',autocorrect:'off',autocapitalize:'off'}),
   placeholder('SELECT * FROM tabela LIMIT 100;'),
@@ -1154,6 +1298,31 @@ const editorExtensions=[
 const editor=new EditorView({
   parent:$('#ed'),state:EditorState.create({extensions:editorExtensions})
 });
+// Trecho de SQL só para leitura, com as mesmas cores do editor (usado no painel do plano).
+function codeView(parent,doc){
+  return new EditorView({parent,state:EditorState.create({doc,extensions:[
+    MySQL.language,sqlHighlight,EditorView.lineWrapping,EditorState.readOnly.of(true),EditorView.editable.of(false)]})});
+}
+// Ctrl+Shift+F: formata a seleção ou, sem seleção, a consulta sob o cursor (desfaz com Ctrl+Z).
+function formatSql(){
+  const {doc,selection}=editor.state,{from,to,empty}=selection.main;
+  let a=from,b=to;
+  try{
+    if(empty){
+      const st=statementAt(doc,from);if(!st)return toast('Nenhuma consulta para formatar');
+      if(st.delimiter!==';')return toast('Formatação não disponível em blocos com DELIMITER');
+      a=st.from;b=st.bodyEnd;
+    }
+  }catch(error){if(!(error instanceof SqlParseError))throw error;return toast(error.message)}
+  const src=doc.sliceString(a,b);
+  if(/^\s*(?:delimiter\b|begin\b|create\s+(?:or\s+replace\s+)?(?:definer\s*=\s*\S+\s+)?(?:aggregate\s+)?(?:procedure|function|trigger|event)\b)/i.test(src))
+    return toast('Formatação não disponível para procedures, funções, triggers e eventos');
+  const out=SqlFormat.format(src).trim(),lead=src.match(/^\s*/)[0],tail=src.match(/\s*$/)[0];
+  if(!out||lead+out+tail===src)return toast('Já está formatado');
+  const ins=lead+out+tail;
+  editor.dispatch({changes:{from:a,to:b,insert:ins},selection:empty?{anchor:a+lead.length}:{anchor:a,head:a+ins.length},userEvent:'input.format',scrollIntoView:true});
+  editor.focus();
+}
 function setSql(doc){
   const tab=cur();
   if(tab.editorState?.doc.toString()!==doc)tab.editorState=EditorState.create({doc,extensions:editorExtensions});
@@ -1175,6 +1344,12 @@ function editorKeydown(e){
   const modified=e.ctrlKey||e.metaKey;
   if(modified&&e.key==='Enter'||e.key==='F5'){
     e.preventDefault();acClose();run(e.key==='Enter'&&e.shiftKey);return true;
+  }
+  if(modified&&e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='f'){
+    e.preventDefault();acClose();formatSql();return true;
+  }
+  if(modified&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='e'){
+    e.preventDefault();acClose();explain();return true;
   }
   if(modified&&e.code==='Space'){
     e.preventDefault();acUpdate(true);return true;
@@ -1427,6 +1602,942 @@ $('#upd').addEventListener('click',async()=>{
 });
 
 /* ---------- início ---------- */
+/* ---------- formatar SQL (Ctrl+Shift+F; testado em tests/format.test.cjs) ---------- */
+// Formatador leve, sem dependências: quebra linha antes de cada cláusula, uma coluna por linha
+// no SELECT com várias colunas, AND/OR do WHERE em linhas próprias e subqueries indentadas.
+// Textos entre aspas, identificadores e comentários saem exatamente como entraram.
+const SqlFormat=(()=>{
+const KW=new Set(('select from where and or not in is null like between exists case when then else end as on join inner left right outer '+
+  'cross natural using group by order having limit offset union all distinct insert into values update set delete with recursive over '+
+  'partition asc desc interval true false regexp rlike straight_join window replace ignore duplicate key lateral rows range unbounded '+
+  'preceding following current row escape div mod xor collate binary for share lock nowait skip locked intersect except returning rollup '+
+  'high_priority low_priority sql_calc_found_rows sql_no_cache delayed quick').split(' '));
+const CLAUSE=['on duplicate key update','lock in share mode','insert ignore into','insert into','replace into','delete from','with recursive',
+  'select','from','where','group by','order by','having','limit','window','union all','union distinct','union','intersect','except',
+  'values','set','update','with','returning','for update','for share'];
+const JOINS=['left outer join','right outer join','inner join','left join','right join','cross join','natural join','straight_join','join'];
+const MODS=new Set(['distinct','all','sql_calc_found_rows','sql_no_cache','high_priority','straight_join','distinctrow']);
+const CMP=new Set(['=','<>','!=','<=','>=','<','>',':=','<=>']);
+const LEX=/(\s+)|(--(?=\s|$)[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:[^'\\]|\\[\s\S]|'')*'?|"(?:[^"\\]|\\[\s\S]|"")*"?)|(`(?:[^`]|``)*`?)|(0x[0-9a-f]+\b|\d+(?:\.\d+)?(?:e[+-]?\d+)?|\.\d+)|(@@?[\w$.]*|[\w$\u0080-￿]+)|(<=>|<>|!=|<=|>=|:=|\|\||&&|->>|->|[\s\S])/giy;
+const TYPES=[null,'ws','comment','str','id','num','word','op'];
+function lex(src){
+  const out=[];let sp=false,nl=false,m;LEX.lastIndex=0;
+  while(LEX.lastIndex<src.length&&(m=LEX.exec(src))){
+    const type=TYPES[m.findIndex((g,i)=>i&&g!==undefined)];
+    if(type==='ws'){sp=true;nl=nl||m[0].includes('\n');continue}
+    out.push({type,v:m[0],sp,nl:nl||!out.length,pos:m.index});sp=nl=false;
+  }
+  return out;
+}
+function format(src){
+  const T=lex(src);let out='',pend=null,prev=null;
+  const root=()=>({block:true,base:0,clause:'',multi:false,between:false});
+  let ctx=[root()];
+  const top=()=>ctx[ctx.length-1];
+  const lw=t=>t&&t.type==='word'?t.v.toLowerCase():'';
+  const lineIndent=()=>{const m=/(?:^|\n)( *)[^\n]*$/.exec(out);return m?m[1].length>>1:0};
+  const newline=n=>{out=out.replace(/[ \t]+$/,'');if(out)out+='\n';out+='  '.repeat(n)};
+  function phrase(k,list){
+    for(const p of list){const ws=p.split(' ');if(ws.every((w,j)=>lw(T[k+j])===w))return p}
+    return null;
+  }
+  function countItems(k){   // vírgulas no nível de cima até a próxima cláusula
+    let d=0,n=0;
+    for(let j=k;j<T.length;j++){const t=T[j];
+      if(t.v==='(')d++;else if(t.v===')'){if(!d)break;d--}else if(t.v===';')break;
+      else if(!d&&t.v===',')n++;else if(!d&&t.type==='word'&&(phrase(j,CLAUSE)||phrase(j,JOINS)||lw(t)==='into'))break;}
+    return n;
+  }
+  function emit(t,text){
+    if(pend!=null){newline(pend);pend=null}
+    else if(out&&!/\n *$/.test(out)){
+      const p=prev,glue=t.v===')'||t.v===','||t.v===';'||t.v==='.'||p.v==='('||p.v==='.'||p.v==='@'||
+        (t.v==='('&&!t.sp&&(p.type==='word'||p.type==='id'));
+      if(!glue&&(t.sp||CMP.has(t.v)||CMP.has(p.v)||p.v===','||(t.type!=='op'&&p.type!=='op')))out+=' ';
+    }
+    out+=text??t.v;prev=t;
+  }
+  for(let k=0;k<T.length;k++){
+    const t=T[k],c=top(),w=lw(t),qual=prev?.v==='.'||T[k+1]?.v==='.';
+    if(t.type==='comment'){
+      if(/^\/\*\+/.test(t.v)&&lw(prev)==='select'){out+=' '+t.v;prev=t;continue}   // hint do otimizador fica na linha do SELECT
+      if(t.nl&&out)pend=pend??(c.clause&&c.clause!=='select'||c.multi?c.base+1:c.base);
+      emit(t);if(/^(--|#)/.test(t.v))pend=c.clause?c.base+1:c.base;continue;
+    }
+    if(t.v===';'){
+      pend=null;emit(t);ctx=[root()];
+      if(T[k+1]?.type==='comment'&&!T[k+1].nl){out+=' '+T[++k].v;prev=T[k]}   // comentário no fim da mesma linha
+      if(k<T.length-1){out+='\n';pend=0}
+      continue;
+    }
+    if(t.v==='('){
+      const sub=['select','with'].includes(lw(T[k+1]));
+      emit(t);ctx.push(sub?{block:true,base:lineIndent()+1,clause:'',multi:false,between:false,sub:true}:{block:false,base:c.base});continue;
+    }
+    if(t.v===')'){
+      const p=ctx.length>1?ctx.pop():c;
+      if(p.sub){pend=null;newline(p.base-1);out+=')';prev=t}else{pend=null;emit(t)}
+      continue;
+    }
+    if(c.block&&t.type==='word'&&!qual){
+      let p=phrase(k,CLAUSE);
+      if(p==='set'&&c.clause!=='update')p=null;
+      if(p==='values'&&!/into$/.test(c.clause))p=null;
+      if((p==='with'||p==='with recursive')&&c.clause)p=null;
+      if(p==='update'&&c.clause&&!c.clause.startsWith('with'))p=null;
+      const j=p?null:phrase(k,JOINS);
+      if(p||j){
+        const ph=p||j,n=ph.split(' ').length;
+        if(out||pend!=null){pend=null;newline(c.base)}
+        emit(t,ph.toUpperCase());k+=n-1;
+        c.clause=p||'join';c.between=false;c.multi=false;
+        if(p==='select'||p==='set'||p==='values'){
+          let m=k+1;
+          while(MODS.has(lw(T[m]))){emit(T[m],T[m].v.toUpperCase());m++}
+          k=m-1;c.multi=countItems(m)>0;if(c.multi)pend=c.base+1;
+        }
+        continue;
+      }
+      if((w==='and'||w==='or')&&['where','having','join'].includes(c.clause)){
+        if(w==='and'&&c.between){c.between=false;emit(t,'AND');continue}
+        pend=c.base+1;emit(t,w.toUpperCase());continue;
+      }
+    }
+    if(w==='between')c.between=true;
+    if(t.v===','&&c.block&&c.multi){emit(t);pend=c.base+1;continue}
+    if(t.v===','&&c.block&&(c.clause==='with'||c.clause==='with recursive')){emit(t);pend=c.base;continue}
+    emit(t,t.type==='word'&&!qual&&KW.has(w)?t.v.toUpperCase():t.v);
+  }
+  return out.replace(/[ \t]+$/gm,'');
+}
+return {format,lex};
+})();
+/* ---------- plano de execução: núcleo (sem DOM; testado em tests/plan.test.cjs) ---------- */
+// Lê o EXPLAIN FORMAT=JSON (v1 do MySQL; MariaDB com tolerância), calcula a parte de cada nó
+// no custo, gera diagnósticos e posiciona os nós. Cores e textos seguem o MySQL Workbench.
+const PlanCore=(()=>{
+const ACC={
+  system:{c:'blue',en:'Single Row (system constant)',pt:'Linha única (system)',hint:'Custo muito baixo: tabela com uma linha só.'},
+  const:{c:'blue',en:'Single Row (constant)',pt:'Linha única (constante)',hint:'Custo muito baixo: lida uma vez, no início.'},
+  eq_ref:{c:'green',en:'Unique Key Lookup',pt:'Busca por chave única',hint:'Custo baixo: no máximo uma linha para cada linha da tabela anterior.'},
+  ref:{c:'green',en:'Non-Unique Key Lookup',pt:'Busca por chave não única',hint:'Baixo a médio: depende de quantas linhas casam com a chave.'},
+  ref_or_null:{c:'green',en:'Key Lookup + Fetch NULL Values',pt:'Busca por chave + NULL',hint:'Baixo a médio: como a busca por chave, mais uma busca pelos NULL.'},
+  fulltext:{c:'yellow',en:'Fulltext Index Search',pt:'Busca full-text',hint:'Especializado: usa o índice FULLTEXT.'},
+  index_merge:{c:'green',en:'Index Merge',pt:'Combinação de índices',hint:'Médio: une o resultado de vários índices; um índice composto pode ser melhor.'},
+  unique_subquery:{c:'orange',en:'Unique Key Lookup into table of subquery',pt:'Chave única na subquery',hint:'Baixo: o IN (subquery) vira busca por chave primária.'},
+  index_subquery:{c:'orange',en:'Non-Unique Key Lookup into table of subquery',pt:'Chave não única na subquery',hint:'Baixo a médio: o IN (subquery) vira busca por índice.'},
+  range:{c:'orange',en:'Index Range Scan',pt:'Faixa de índice',hint:'Médio: lê só um intervalo do índice.'},
+  index:{c:'red',en:'Full Index Scan',pt:'Varredura completa de índice',hint:'Alto: percorre o índice inteiro (melhor que ALL quando é de cobertura).'},
+  ALL:{c:'red',en:'Full Table Scan',pt:'Varredura completa da tabela',hint:'Muito alto em tabelas grandes: lê todas as linhas.'}
+};
+const accVar=a=>`var(--a-${ACC[a]?.c||'gray'})`;
+const heat=p=>p>=.4?'var(--a-red)':p>=.2?'var(--a-orange)':p>=.07?'var(--a-yellow)':'var(--a-green)';
+const nf=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2});
+// "1.50", 12, "1K", "3M" (o MySQL usa sufixos em alguns campos)
+function num(v){
+  if(v==null||v==='')return null;if(typeof v==='number')return v;
+  const m=/^\s*(-?[\d.]+(?:e[+-]?\d+)?)\s*([KMGT]?)/i.exec(String(v));if(!m)return null;
+  return +m[1]*{'':1,K:1e3,M:1e6,G:1e9,T:1e12}[m[2].toUpperCase()];
+}
+function fmtN(n){
+  if(n==null||isNaN(n))return '—';const a=Math.abs(n),f=x=>nf.format(+x.toFixed(1));
+  if(a>=1e9)return f(n/1e9)+' bi';if(a>=1e6)return f(n/1e6)+' mi';if(a>=1e4)return f(n/1e3)+' mil';
+  return nf.format(a<10?+n.toFixed(2):Math.round(n));
+}
+const pctS=p=>p==null?'—':(p>0&&p<.001?'<0,1':nf.format(+(p*100).toFixed(1)))+'%';
+// `app`.`i`.`status` -> i.status
+const cleanCond=s=>s&&String(s).replace(/`[^`]+`\.(`[^`]+`\.`[^`]+`)/g,'$1').replace(/`([^`]*)`/g,'$1');
+
+let NID=0;
+const mk=o=>Object.assign({id:++NID,children:[],flags:[],est:{}},o);
+const OPS={ordering_operation:'ORDER BY',grouping_operation:'GROUP BY',duplicates_removal:'DISTINCT',windowing:'WINDOW',
+  buffer_result:'BUFFER RESULT',union_result:'UNION',intersect_result:'INTERSECT',except_result:'EXCEPT',filesort:'ORDER BY',
+  temporary_table:'TABELA TEMPORÁRIA',read_sorted_file:'LER ORDENADO'};
+const SUBK={attached_subqueries:'subquery na condição',optimized_away_subqueries:'subquery otimizada',having_subqueries:'subquery no HAVING',
+  select_list_subqueries:'subquery no SELECT',order_by_subqueries:'subquery no ORDER BY',group_by_subqueries:'subquery no GROUP BY',
+  update_value_subqueries:'subquery no SET',subqueries:'subquery'};
+const SKIP=/^(cost_info|cost|select_id|message|table_name|used_columns|possible_keys|used_key_parts|ref|key|key_length|windows|query_specifications|attached_condition|sort_key|filesort_key|functions|r_\w+|rows\w*|filtered|loops)$/;
+
+function parse(json){
+  NID=0;const o=typeof json==='string'?JSON.parse(json):json;
+  if(!o||typeof o!=='object'||!o.query_block)throw new Error('Formato de plano não reconhecido (esperado EXPLAIN FORMAT=JSON com query_block).');
+  return block(o.query_block);
+}
+function block(qb,extra){
+  const n=mk({kind:'block',title:'query_block #'+(qb.select_id??1),raw:qb,est:{cost:num(qb.cost_info?.query_cost??qb.cost)},...extra});
+  const b=body(qb);if(b)n.children.push(b);
+  if(qb.message)n.children.push(mk({kind:'msg',title:qb.message,raw:qb}));
+  subs(qb,n);return n;
+}
+function op(title,x){
+  const n=mk({kind:'op',title,raw:x});
+  if(x.using_filesort)n.flags.push('filesort');
+  if(x.using_temporary_table||x.temporary_table)n.flags.push('tabela temporária');
+  if(x.sort_key)n.detail=x.sort_key;
+  if(x.cost_info?.sort_cost)n.est.cost=num(x.cost_info.sort_cost);
+  if(Array.isArray(x.query_specifications))x.query_specifications.forEach(s=>{const qb=s.query_block||s;if(qb&&typeof qb==='object')n.children.push(block(qb))});
+  else{const b=body(x.temporary_table&&typeof x.temporary_table==='object'?x.temporary_table:x);if(b)n.children.push(b)}
+  subs(x,n);return n;
+}
+function body(o){
+  if(Array.isArray(o))return seq(o);
+  for(const k in OPS){const x=o[k];if(!x||typeof x!=='object')continue;
+    if(Array.isArray(x)){const n=mk({kind:'op',title:OPS[k],raw:x}),c=seq(x);if(c)n.children.push(c);return n}
+    const n=op(OPS[k],x);if(k==='filesort'&&!n.flags.includes('filesort'))n.flags.unshift('filesort');return n}
+  if(o.nested_loop)return seq(o.nested_loop);
+  if(o.table)return table(o.table);
+  if(o['block-nl-join'])return item(o);
+  if(o.query_block)return block(o.query_block);
+  // Chave desconhecida com conteúdo: vira uma operação genérica em vez de sumir do diagrama.
+  for(const k in o){const x=o[k];
+    if(x&&typeof x==='object'&&!SKIP.test(k)&&!SUBK[k]){const n=mk({kind:'op',title:k.replace(/[_-]+/g,' ').toUpperCase(),raw:x}),c=body(x);if(c)n.children.push(c);subs(x,n);return n}}
+  return null;
+}
+function item(x){
+  if(!x||typeof x!=='object')return null;
+  if(x.table)return table(x.table);
+  const b=x['block-nl-join'];
+  if(b){const t=table(b.table||{});t.flags.push('join buffer'+(b.join_type?' ('+b.join_type+')':''));t.buffer=b.join_type||'BNL';if(b.attached_condition&&!t.cond)t.cond=b.attached_condition;return t}
+  return body(x);
+}
+function joinLabel(c){
+  const b=String(c?.raw?.using_join_buffer||c?.buffer||'');
+  const j=/hash/i.test(b)?'hash join':/batched/i.test(b)?'batched key access':b?'block nested loop':'nested loop';
+  const r=c?.raw||{};return j+(r.not_exists?' · anti':r.first_match?' · semi':'');
+}
+function seq(list){
+  const it=list.map(item).filter(Boolean);
+  if(!it.length)return null;if(it.length===1)return it[0];
+  return mk({kind:'nl',children:it,raw:list,joins:it.slice(1).map(joinLabel)});
+}
+function table(t){
+  if(!t.table_name&&t.message)return mk({kind:'msg',title:t.message,raw:t});
+  const ci=t.cost_info||{},scan=num(t.rows_examined_per_scan??t.rows),filtered=num(t.filtered);
+  const rows=num(t.rows_produced_per_join)??(scan!=null&&filtered!=null?scan*filtered/100:scan);
+  const cost=ci.read_cost!=null||ci.eval_cost!=null?(num(ci.read_cost)||0)+(num(ci.eval_cost)||0):num(t.cost);
+  const n=mk({kind:'table',title:t.table_name||'?',access:t.access_type,key:t.key,raw:t,cond:t.attached_condition,
+    est:{rows,scan,filtered,cost,read:num(ci.read_cost),eval:num(ci.eval_cost),prefix:num(ci.prefix_cost),data:ci.data_read_per_join}});
+  if(t.using_index)n.flags.push('índice de cobertura');
+  if(t.using_index_condition||t.index_condition)n.flags.push('index condition pushdown');
+  if(t.using_join_buffer)n.flags.push('join buffer ('+t.using_join_buffer+')');
+  if(t.using_temporary_table)n.flags.push('tabela temporária');
+  if(t.using_filesort)n.flags.push('filesort');
+  const m=t.materialized_from_subquery||t.materialized;
+  if(m&&m.query_block){n.derived=true;
+    n.children.push(block(m.query_block,{frame:(m.dependent?'derivada DEPENDENTE ':'tabela derivada ')+(t.table_name||'')+' (materializada)',edge:'materializa',dependent:!!m.dependent}))}
+  subs(t,n);return n;
+}
+function subs(o,n){
+  for(const k in SUBK){const v=o[k];if(!Array.isArray(v))continue;
+    for(const s of v){const qb=s?.query_block||s?.materialized?.query_block||s?.expression_cache?.subquery?.query_block;if(!qb)continue;
+      const dep=!!s.dependent;n.children.push(block(qb,{frame:(dep?'subquery DEPENDENTE':SUBK[k])+' #'+(qb.select_id??''),sub:true,dependent:dep,cacheable:s.cacheable}))}}
+}
+
+function walk(n,f,p=null,d=0){f(n,p,d);n.children.forEach(c=>walk(c,f,n,d+1))}
+function outRows(n){
+  if(n.kind==='table')return n.est.rows;if(n.kind==='nl')return outRows(n.children.at(-1));
+  if(n.est.rows!=null)return n.est.rows;const c=n.children.find(x=>!x.sub);return c?outRows(c):null;
+}
+const realName=(P,n)=>P.alias?.[String(n.title).toLowerCase()]?.table||n.title;
+
+/* --- diagnósticos --- */
+function analyze(P){
+  // Uma subquery dependente roda uma vez por linha de fora: o custo dela conta multiplicado.
+  let tot=0;
+  (function w(n,m,p){
+    if(n.kind==='block'&&n.dependent&&p){const runs=outRows(p);if(runs>1)m*=runs}
+    n.mult=m;n.share=n.kind==='table'?(n.est.cost||0)*m:0;tot+=n.share;n.children.forEach(c=>w(c,m,n));
+  })(P.root,1,null);
+  walk(P.root,n=>{n.pct=tot?n.share/tot:0});P.total=tot;
+  const I=[];
+  walk(P.root,(n,p)=>{
+    const tn=realName(P,n);
+    if(n.kind==='table'){
+      const rows=n.est.scan,fl=n.est.filtered,inner=p?.kind==='nl'&&p.children.indexOf(n)>0||n.mult>1;
+      if(n.access==='ALL'&&rows>=1000)I.push({sev:n.pct>.25?'hi':'md',n,t:`Varredura completa em ${tn}`,
+        p:`Lê ${fmtN(rows)} linhas (${pctS(n.pct)} do custo)`+(fl!=null&&fl<100?` para aproveitar ${nf.format(fl)}%`:'')+'.'+(n.raw?.possible_keys?` Índices possíveis não usados: ${n.raw.possible_keys.join(', ')}.`:'')+(inner&&n.mult>1?` Isso se repete a cada execução da subquery (${fmtN(n.mult)}×).`:''),fix:suggestIndex(n,tn,inner)});
+      else if(n.access==='index'&&rows>=10000){const cov=n.flags.includes('índice de cobertura');
+        I.push({sev:cov?'lo':'md',n,t:`Índice inteiro percorrido em ${tn}`,p:`${fmtN(rows)} entradas do índice ${n.key}.`+(cov?' É de cobertura (não lê a tabela): aceitável quando a consulta precisa da tabela toda.':' Além do índice, lê a tabela para cada entrada.')})}
+      else if(fl!=null&&fl<=15&&rows>=10000&&n.access!=='ALL')I.push({sev:'lo',n,t:`Lê muito e aproveita pouco em ${tn}`,p:`Só ${nf.format(fl)}% das ${fmtN(rows)} linhas lidas pelo índice ${n.key||''} passam no WHERE.`,fix:suggestIndex(n,tn,inner)});
+      const lk=/(?:`?[\w$]+`?\.)?`?([\w$]+)`?\s+like\s+'%/i.exec(n.cond||'');
+      if(lk&&rows>=1000)I.push({sev:'lo',n,t:`LIKE começando com % em ${tn}`,p:`Um padrão que começa com % não aproveita índice comum: o MySQL compara linha por linha. Para buscar palavras, um índice FULLTEXT com MATCH … AGAINST resolve.`,
+        fix:{sql:`ALTER TABLE ${tn} ADD FULLTEXT INDEX ft_${tn}_${lk[1]} (${lk[1]});\n-- e na consulta, no lugar do LIKE:\n-- WHERE MATCH(${lk[1]}) AGAINST ('palavra' IN BOOLEAN MODE)`,why:'O FULLTEXT busca palavras inteiras (ou prefixos com *), não qualquer trecho do texto: confira se atende ao caso.'}});
+      if(n.flags.some(f=>f.startsWith('join buffer')))I.push({sev:'md',n,t:`JOIN sem índice em ${tn}`,p:`O MySQL guarda linhas num buffer (${n.raw?.using_join_buffer||n.buffer}) porque não há índice na coluna de junção de ${tn}.`,fix:suggestIndex(n,tn,true)});
+      // filtered com valor padrão do MySQL = coluna sem índice nem histograma: a estimativa é um chute
+      const g=guess(fl),{eq,rg}=condCols(n),hc=[...eq,...rg].filter(c=>!(n.raw?.used_key_parts||[]).includes(c));
+      if(g&&hc.length&&rows>=1000)I.push({sev:'md',n,t:`Estimativa chutada em ${tn}`,p:`filtered = ${nf.format(fl)}% é um valor padrão do MySQL (${g}): sem índice nem histograma em ${hc.join(', ')}, ele não sabe quantas linhas passam no filtro. Com estimativas erradas, a ordem do JOIN e o plano podem ser ruins.`,
+        fix:{sql:`ANALYZE TABLE ${tn} UPDATE HISTOGRAM ON ${hc.join(', ')};`,why:'O histograma ensina ao otimizador a distribuição real dos valores (MySQL 8.0+). Não muda dados nem índices; rode de novo quando os dados mudarem muito.'}});
+    }
+    if(n.kind==='op'&&n.flags.includes('filesort')&&(outRows(n)??0)>=1000)I.push({sev:'lo',n,t:`${n.title} com ordenação (filesort)`,p:`Ordena cerca de ${fmtN(outRows(n))} linhas sem usar índice.`});
+    if(n.kind==='op'&&n.flags.includes('tabela temporária'))I.push({sev:'lo',n,t:`Tabela temporária para ${n.title}`,p:'Agrupar ou ordenar por colunas de tabelas diferentes, ou por expressões, obriga o MySQL a materializar o resultado.'});
+    if(n.kind==='block'&&n.dependent){const runs=p?outRows(p):null;
+      I.push({sev:'hi',n,t:n.sub?'Subquery dependente (correlacionada)':'Tabela derivada dependente',p:`Roda de novo para cada linha de ${p?realName(P,p):'fora'}${runs?`: cerca de ${fmtN(runs)} execuções`:''}. Reescrever como JOIN costuma resolver.`})}
+    if(n.kind==='msg'&&/impossible|no matching/i.test(n.title))I.push({sev:'inf',n,t:'Nenhuma linha possível',p:`O otimizador concluiu sem ler tabelas: "${n.title}".`});
+  });
+  P.ins=sortIns(I);return P;
+}
+// Seletividades fixas que o MySQL usa quando não tem estatística: igualdade 10%, desigualdade 33,33%,
+// BETWEEN/LIKE 'x%' 11,11% — e os produtos delas quando há várias condições.
+const GUESS=(()=>{const b=[[10,'igualdade'],[33.33,'desigualdade'],[11.11,'BETWEEN/LIKE']],m=new Map();
+  for(const [x,a] of b){m.set(x.toFixed(2),a);for(const [y,c] of b){m.set((x*y/100).toFixed(2),a+' + '+c)}}return m})();
+const guess=f=>f!=null&&f<100?GUESS.get((+f).toFixed(2)):null;
+const SEVO={hi:0,md:1,lo:2,inf:3};
+const sortIns=I=>I.sort((a,b)=>SEVO[a.sev]-SEVO[b.sev]||b.n.pct-a.n.pct);
+// Colunas da condição de uma tabela: igualdades e faixas (para montar índices).
+function condCols(n){
+  const a=String(n.title).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),eq=[],rg=[],jn=[];
+  const ref='(?:`[^`]+`|[\\w$]+)',col=`(?:${ref}\\.)?(${ref})\\.(${ref})`;
+  for(const m of String(n.cond||'').matchAll(new RegExp(col+'\\s*=\\s*'+col,'g'))){
+    const u=x=>x.replace(/`/g,''),[l,lc,r,rc]=[u(m[1]),u(m[2]),u(m[3]),u(m[4])];
+    if(l===n.title&&r!==n.title&&!jn.includes(lc))jn.push(lc);
+    if(r===n.title&&l!==n.title&&!jn.includes(rc))jn.push(rc);
+  }
+  const re=new RegExp('`?'+a+'`?\\.`?([\\w$]+)`?\\s*(=|<=>|like|in|>=|<=|>|<|between)\\s*([^)]*)','gi');
+  for(const m of String(n.cond||'').matchAll(re)){
+    const col=m[1],o=m[2].toLowerCase(),rhs=m[3].trim();
+    if(/^`?[\w$]+`?\.`?[\w$]+`?/.test(rhs)&&o==='=')continue;  // coluna = outra coluna (junção)
+    if(o==='='||o==='<=>'||o==='in'){if(!eq.includes(col))eq.push(col)}
+    else if(o!=='like'||/^'[^%_]/.test(rhs)){if(!rg.includes(col)&&!eq.includes(col))rg.push(col)}
+  }
+  return {eq,rg,jn};
+}
+// Igualdades primeiro, depois uma coluna de faixa; com poucas colunas, completa com as usadas (cobertura).
+function suggestIndex(n,tn,inner){
+  const {eq,rg,jn}=condCols(n),J=inner?jn:[];
+  if(!J.length&&!eq.length&&!rg.length)return null;
+  // "id" fica de fora: no InnoDB todo índice secundário já carrega a chave primária
+  const cols=[...J,...eq.filter(c=>!J.includes(c)),...rg.filter(c=>!J.includes(c)).slice(0,1)],used=(n.raw?.used_columns||[]).filter(x=>!cols.includes(x)&&x!=='id');
+  const cover=cols.length+used.length<=5?[...cols,...used]:cols;
+  return {sql:`CREATE INDEX ix_${tn}_${cols.join('_')}\n  ON ${tn} (${cover.join(', ')});`,
+    why:(J.length?`${J.join(', ')} liga esta tabela à anterior: com índice, cada linha de fora vira uma busca direta em vez de uma varredura. `:'')+(cover.length>cols.length?'Colunas do WHERE primeiro; as demais colunas usadas no fim tornam o índice de cobertura (não precisa ler a tabela). Confira os índices que já existem antes de criar.':'Colunas do WHERE, igualdades primeiro. Confira os índices que já existem antes de criar.')};
+}
+
+/* --- layout: fluxo de baixo para cima, como no Workbench --- */
+// Um nested loop vira uma fileira de losangos; a tabela i entra pelo losango i.
+const SZ={table:[196,88],op:[160,48],block:[196,46],msg:[196,40],nl:[40,40]},HG=40,VG=64;
+function measure(n){
+  const ch=n.children;ch.forEach(measure);
+  let x=0;n._cx=[];ch.forEach((c,i)=>{if(i)x+=HG;n._cx.push(x);x+=c._w});
+  if(n.kind==='nl'){n._w=x;n._h=SZ.nl[1]+VG+Math.max(...ch.map(c=>c._h));n._ax=n._cx.at(-1)+ch.at(-1)._ax;return}
+  const [w,h]=SZ[n.kind];
+  if(!ch.length){n._w=w;n._h=h;n._ax=w/2;return}
+  const ax=ch.length===1?n._cx[0]+ch[0]._ax:(n._cx[0]+ch[0]._ax+n._cx.at(-1)+ch.at(-1)._ax)/2;
+  const pl=Math.max(0,w/2-ax),pr=Math.max(0,ax+w/2-x);
+  n._cx=n._cx.map(v=>v+pl);n._ax=ax+pl;n._w=x+pl+pr;n._h=h+VG+Math.max(...ch.map(c=>c._h));
+}
+function place(n,x,y,out){
+  if(n.kind==='nl'){
+    const D=SZ.nl[1];n._d=[];
+    n.children.forEach((c,i)=>{if(i)n._d.push({x:x+n._cx[i]+c._ax,y:y+D/2});place(c,x+n._cx[i],y+D+VG,out)});
+    n.x=n._d.at(-1).x;n.y=y;n.w=D;n.h=D;out.push(n);return;
+  }
+  const [w,h]=SZ[n.kind];n.x=x+n._ax;n.y=y;n.w=w;n.h=h;out.push(n);
+  n.children.forEach((c,i)=>place(c,x+n._cx[i],y+h+VG,out));
+}
+function layout(P){
+  measure(P.root);P.nodes=[];place(P.root,0,0,P.nodes);P.frames=[];
+  walk(P.root,n=>{if(!n.frame)return;let l=1e9,t=1e9,r=-1e9,b=-1e9;
+    walk(n,m=>{const bs=m.kind==='nl'?m._d.map(q=>[q.x-20,q.y-20,q.x+20,q.y+20]):[[m.x-m.w/2,m.y,m.x+m.w/2,m.y+m.h]];
+      for(const [a,c,d,e] of bs){l=Math.min(l,a);t=Math.min(t,c);r=Math.max(r,d);b=Math.max(b,e)}});
+    P.frames.push({n,x:l-14,y:t-24,w:r-l+28,h:b-t+38})});
+  P.W=P.root._w;P.H=P.root._h;return P;
+}
+return {ACC,accVar,heat,nf,num,fmtN,pctS,cleanCond,parse,analyze,layout,walk,outRows,realName,suggestIndex,condCols,sortIns,SZ,VG};
+})();
+/* ---------- plano de execução: reescritas (sem DOM; testado em tests/rewrite.test.cjs) ---------- */
+// Cada regra parte de algo que o plano ou o servidor mostram e só reescreve quando o padrão é
+// inequívoco e a consulta nova devolve o mesmo resultado. O app confirma o ganho rodando EXPLAIN
+// na versão nova (sem executar nada) e só destaca o que baixa o custo estimado.
+const PlanRewrite=(()=>{
+const C=PlanCore,AGG=new Set(['avg','sum','min','max','count']);
+const lw=t=>t&&t.type==='word'?t.v.toLowerCase():'';
+const isName=t=>t&&(t.type==='word'||t.type==='id');
+const unq=t=>t.type==='id'?t.v.slice(1,-1).replace(/``/g,'`'):t.v;
+function prep(sql){
+  const T=SqlFormat.lex(sql).filter(t=>t.type!=='comment'),st=[];let d=0;
+  T.forEach((t,i)=>{t.end=t.pos+t.v.length;if(t.v===')'){d--;const o=st.pop();if(o!=null){T[o].match=i;t.match=o}}t.d=d;if(t.v==='('){d++;st.push(i)}});
+  return T;
+}
+// coluna ou tabela, com ou sem qualificador: c | t.c | `t`.`c`
+function ref(T,i){
+  const a=T[i];if(!isName(a)||T[i-1]?.v==='.')return null;
+  if(T[i+1]?.v==='.'&&isName(T[i+2]))return {q:unq(a),c:unq(T[i+2]),i0:i,i1:i+3};
+  return {q:null,c:unq(a),i0:i,i1:i+1};
+}
+const txt=(sql,T,a,b)=>sql.slice(T[a].pos,T[b].end);   // texto original dos tokens a..b
+const apply=(sql,E)=>{let s=sql;for(const e of [...E].sort((a,b)=>b.from-a.from))s=s.slice(0,e.from)+e.text+s.slice(e.to);return s};
+function nextDay(lit){
+  const m=/^'(\d{4})-(\d{2})-(\d{2})'$/.exec(lit);if(!m)return null;
+  const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  if(d.getUTCDate()!==+m[3]||d.getUTCMonth()!==+m[2]-1)return null;   // data inválida
+  d.setUTCDate(d.getUTCDate()+1);return `'${d.toISOString().slice(0,10)}'`;
+}
+
+/* 1. DATE(col) = 'AAAA-MM-DD', DATE(col) BETWEEN …, YEAR(col) = AAAA  ->  faixa sobre a coluna */
+function sargable(sql,T){
+  const E=[],cols=[];
+  for(let i=0;i<T.length;i++){
+    const f=lw(T[i]);if(f!=='date'&&f!=='year'||T[i+1]?.v!=='('||T[i-1]?.v==='.')continue;
+    const c=ref(T,i+2);if(!c||T[c.i1]?.v!==')')continue;
+    const col=txt(sql,T,c.i0,c.i1-1),j=c.i1+1,op=T[j],a=T[j+1];
+    let to=null,lo,hi;
+    if(f==='date'&&op?.v==='='&&a?.type==='str'&&nextDay(a.v)){lo=a.v;hi=nextDay(a.v);to=j+1}
+    else if(f==='date'&&lw(op)==='between'&&a?.type==='str'&&lw(T[j+2])==='and'&&T[j+3]?.type==='str'&&nextDay(a.v)&&nextDay(T[j+3].v)){lo=a.v;hi=nextDay(T[j+3].v);to=j+3}
+    else if(f==='year'&&op?.v==='='&&a?.type==='num'&&/^\d{4}$/.test(a.v)){lo=`'${a.v}-01-01'`;hi=`'${+a.v+1}-01-01'`;to=j+1}
+    if(to==null)continue;
+    E.push({from:T[i].pos,to:T[to].end,text:`(${col} >= ${lo} AND ${col} < ${hi})`});cols.push(col);i=to;
+  }
+  if(!E.length)return null;
+  return {id:'sarg',title:'Filtrar a coluna, não a função',sql:apply(sql,E),
+    why:`${[...new Set(cols)].join(', ')} estava dentro de DATE()/YEAR(). Assim o MySQL calcula a função em cada linha e não usa índice. A faixa equivalente deixa o índice da coluna ser usado.`,
+    caveat:'Equivalente para colunas DATE, DATETIME e TIMESTAMP. O ganho só aparece se a coluna tiver índice.'};
+}
+
+/* 2. Subquery correlacionada com agregação  ->  LEFT JOIN com a agregação pré-calculada */
+// x > (SELECT AVG(c.v) FROM t c WHERE c.k = o.k [AND …])  vira
+// LEFT JOIN (SELECT c.k AS k, AVG(c.v) AS v FROM t c [WHERE …] GROUP BY c.k) sq1 ON sq1.k = o.k
+// O GROUP BY garante no máximo uma linha por chave (o JOIN não duplica linhas) e o LEFT JOIN
+// devolve NULL onde a subquery devolveria NULL; para COUNT, que devolve 0, entra COALESCE.
+function aggSub(sql,T,s,e){
+  const D=T[s].d;let i=s+1;   // profundidade de dentro dos parênteses
+  const agg=lw(T[i]);if(!AGG.has(agg)||T[i+1]?.v!=='(')return null;
+  const ac=T[i+1].match;if(ac==null||ac>=e)return null;
+  const aggText=txt(sql,T,i,ac);i=ac+1;
+  if(lw(T[i])==='as')i+=2;else if(isName(T[i])&&lw(T[i])!=='from')i++;
+  if(lw(T[i])!=='from')return null;
+  const tb=ref(T,i+1);if(!tb)return null;i=tb.i1;
+  let alias=null;
+  if(lw(T[i])==='as'){alias=unq(T[i+1]);i+=2}else if(isName(T[i])&&lw(T[i])!=='where'){alias=unq(T[i]);i++}
+  const from=txt(sql,T,tb.i0,i-1);
+  if(lw(T[i])!=='where')return null;
+  const inner=(alias||tb.c).toLowerCase(),parts=[];let st=++i;
+  for(let j=i;j<=e;j++){
+    const t=T[j];
+    if(j===e||t.d===D&&lw(t)==='and'){if(j===st)return null;parts.push([st,j-1]);st=j+1;continue}
+    if(t.d===D&&(t.v===','||['or','between','group','order','limit','having','union','join','xor'].includes(lw(t))))return null;
+  }
+  let corr=null;const rest=[];
+  for(const [a,b] of parts){
+    const L=ref(T,a),R=L&&T[L.i1]?.v==='='?ref(T,L.i1+1):null;
+    if(L&&R&&R.i1===b+1&&L.q&&R.q&&(L.q.toLowerCase()===inner)!==(R.q.toLowerCase()===inner)){
+      if(corr)return null;
+      corr=L.q.toLowerCase()===inner?{k:L,o:R}:{k:R,o:L};continue;
+    }
+    // as outras condições não podem citar tabelas de fora
+    for(let j=a;j<=b;j++)if(isName(T[j])&&T[j+1]?.v==='.'&&unq(T[j]).toLowerCase()!==inner)return null;
+    rest.push(txt(sql,T,a,b));
+  }
+  for(let j=s+1;j<ac;j++)if(isName(T[j])&&T[j+1]?.v==='.'&&unq(T[j]).toLowerCase()!==inner)return null;
+  if(!corr)return null;
+  return {agg,aggText,from,rest:rest.join(' AND '),key:txt(sql,T,corr.k.i0,corr.k.i1-1),outer:txt(sql,T,corr.o.i0,corr.o.i1-1)};
+}
+function correlated(sql,T,P){
+  let dep=false;C.walk(P.root,n=>{if(n.kind==='block'&&n.dependent&&n.sub)dep=true});
+  if(!dep||lw(T[0])!=='select'||T.some(t=>t.d===0&&['union','into'].includes(lw(t))))return null;
+  const top=k=>T.findIndex(t=>t.d===0&&lw(t)===k),iFrom=top('from'),iWhere=top('where');
+  if(iFrom<0)return null;
+  const ENDS=['where','group','having','order','limit','window','for','lock'];
+  const iEnd=T.findIndex((t,i)=>i>iFrom&&t.d===0&&(ENDS.includes(lw(t))||t.v===';'));
+  const at=iEnd<0?sql.length:T[iEnd].pos;
+  const wEnd=iWhere<0?-1:(k=>k<0?T.length:k)(T.findIndex((t,i)=>i>iWhere&&t.d===0&&(ENDS.includes(lw(t))||t.v===';')));
+  const used=new Set(T.filter(isName).map(t=>unq(t).toLowerCase()));
+  const E=[],J=[];let n=0;
+  for(let i=0;i<T.length;i++){
+    const t=T[i];
+    if(t.v!=='('||t.d!==0||lw(T[i+1])!=='select'||t.match==null)continue;
+    if(!(i<iFrom||iWhere>=0&&i>iWhere&&i<wEnd))continue;   // só no SELECT ou no WHERE
+    const r=aggSub(sql,T,i+1,t.match);if(!r)continue;
+    let a;do{a='sq'+(++n)}while(used.has(a));
+    E.push({from:t.pos,to:T[t.match].end,text:r.agg==='count'?`COALESCE(${a}.v, 0)`:`${a}.v`});
+    J.push(`LEFT JOIN (SELECT ${r.key} AS k, ${r.aggText} AS v FROM ${r.from}${r.rest?' WHERE '+r.rest:''} GROUP BY ${r.key}) ${a} ON ${a}.k = ${r.outer}`);
+    i=t.match;
+  }
+  if(!E.length)return null;
+  E.push({from:at,to:at,text:iEnd<0?' '+J.join(' '):J.join(' ')+' '});
+  return {id:'corr',title:'Subquery correlacionada vira JOIN',sql:apply(sql,E),
+    why:`A subquery rodava uma vez para cada linha da consulta de fora. Na versão nova, a agregação é calculada uma vez por chave (GROUP BY) e ligada com LEFT JOIN, que devolve o mesmo resultado.`};
+}
+
+/* 3. Coluna de texto comparada com número (aviso 1739 do servidor)  ->  número entre aspas */
+function conversion(sql,T,notes){
+  const F=new Set();
+  for(const n of notes||[]){const m=n[1]===1739&&/on field '([^']+)'/.exec(n[2]);if(m)F.add(m[1].toLowerCase())}
+  if(!F.size)return null;
+  const E=[],cols=new Set(),q=t=>({from:t.pos,to:t.end,text:`'${t.v}'`});
+  for(let i=0;i<T.length;i++){
+    const c=ref(T,i);if(!c||!F.has(c.c.toLowerCase()))continue;
+    const j=c.i1;
+    if(T[j]?.v==='='&&T[j+1]?.type==='num'){E.push(q(T[j+1]));cols.add(c.c)}
+    else if(lw(T[j])==='in'&&T[j+1]?.v==='('&&T[j+1].match!=null){
+      const e=T[j+1].match,ns=[];let ok=true;
+      for(let k=j+2;k<e;k++){if(T[k].type==='num')ns.push(q(T[k]));else if(T[k].v!==',')ok=false}
+      if(ok&&ns.length){E.push(...ns);cols.add(c.c)}
+    }
+    i=c.i1-1;
+  }
+  if(!E.length)return null;
+  return {id:'conv',title:'Comparar texto com texto',sql:apply(sql,E),
+    why:`${[...cols].join(', ')} é texto e estava sendo comparado com número: o MySQL converte o valor de cada linha e não usa o índice (aviso 1739 do servidor).`,
+    caveat:'Como número, "0123" e "123" são iguais; como texto, não. Confira se os valores não têm zeros à esquerda nem espaços.'};
+}
+
+/* 4. Ordem do JOIN: alternativas forçadas com o hint JOIN_ORDER (MySQL 8.0+) */
+// O otimizador escolhe a ordem de menor custo ESTIMADO; quando a estimativa erra (filtro sem
+// índice nem histograma, dados desbalanceados), outra ordem pode ser bem mais rápida. Estas
+// alternativas não ganham no EXPLAIN (o otimizador já preferiu a dele): só a medição real decide.
+function topJoin(P){
+  let n=P.root.children.find(c=>!c.sub);
+  while(n&&n.kind==='op')n=n.children.find(c=>!c.sub);
+  return n?.kind==='nl'&&n.children.every(c=>c.kind==='table')?n:null;
+}
+const hintName=t=>/^[A-Za-z_$][\w$]*$/.test(t)?t:'`'+t.replace(/`/g,'``')+'`';
+function joinOrders(sql,T,P,server){
+  if(server&&(server.flavor!=='MySQL'||parseInt(server.version)<8))return [];
+  const nl=topJoin(P);if(!nl||nl.children.length>5||lw(T[0])!=='select'||T[1]?.type==='comment'||/\/\*\+/.test(sql))return [];
+  const cur=nl.children.map(c=>c.title),first=nl.children[0],out=[];
+  if(T.some(t=>t.d===0&&lw(t)==='union'))return [];
+  const why=(c)=>{
+    const {eq,rg}=C.condCols(c),f=[...eq,...rg];
+    return `Hoje o MySQL começa por ${C.realName(P,first)} (${C.fmtN(first.est.scan)} linhas lidas${first.access==='ALL'?', varredura completa':''}) e busca as outras tabelas para cada linha. `+
+      (f.length?`${C.realName(P,c)} tem filtro próprio (${f.join(', ')}): começando por ela, o JOIN pode partir de menos linhas.`:`Começar por ${C.realName(P,c)} muda o lado que dirige o JOIN.`)+
+      (c.est.filtered!=null&&GUESSY(c.est.filtered)?` O filtered dela (${C.nf.format(c.est.filtered)}%) é um chute do MySQL, então a estimativa pode estar errada.`:'');
+  };
+  // candidatas: cada tabela com filtro próprio vai para a frente; com 2 tabelas, a ordem inversa
+  const cands=nl.children.slice(1).filter(c=>{const {eq,rg}=C.condCols(c);return eq.length||rg.length});
+  if(nl.children.length===2&&!cands.length)cands.push(nl.children[1]);
+  for(const c of cands.slice(0,3)){
+    const order=[c.title,...cur.filter(t=>t!==c.title)];
+    out.push({id:'order:'+order.join(','),kind:'hint',expect:order,title:`Começar o JOIN por ${C.realName(P,c)}`,
+      sql:sql.slice(0,T[0].end)+` /*+ JOIN_ORDER(${order.map(hintName).join(', ')}) */`+sql.slice(T[0].end),
+      why:why(c),caveat:'Só muda a ordem de leitura, o resultado é o mesmo. O hint JOIN_ORDER é ignorado em versões antigas.'});
+  }
+  return out;
+}
+const GUESSY=f=>[10,33.33,11.11,1,3.33,3.7,1.23,11.11].some(g=>Math.abs(f-g)<.01);
+function rewrites(sql,P,notes,server){
+  const T=prep(sql);if(!T.length)return [];
+  return [correlated(sql,T,P),sargable(sql,T),conversion(sql,T,notes),...joinOrders(sql,T,P,server)].filter(Boolean);
+}
+
+/* Conselhos que dependem do texto da consulta (entram nos diagnósticos, sem validação) */
+function advice(sql,P){
+  const T=prep(sql),I=[],top=k=>T.findIndex(t=>t.d===0&&lw(t)===k);
+  // OFFSET grande: LIMIT a, b  ou  LIMIT b OFFSET a
+  const iL=top('limit');
+  if(iL>=0){
+    let off=null,cnt=null;const A=T[iL+1],B=T[iL+3];
+    if(A?.type==='num'&&T[iL+2]?.v===','&&B?.type==='num'){off=+A.v;cnt=+B.v}
+    else if(A?.type==='num'&&lw(T[iL+2])==='offset'&&B?.type==='num'){off=+B.v;cnt=+A.v}
+    if(off>=10000){
+      const iO=top('order'),o=iO>=0&&lw(T[iO+1])==='by'?ref(T,iO+2):null;
+      const one=o&&(!T[o.i1]||T[o.i1].v===';'||['asc','desc','limit'].includes(lw(T[o.i1])));
+      const col=one?txt(sql,T,o.i0,o.i1-1):'<coluna única do ORDER BY>',desc=one&&lw(T[o.i1])==='desc';
+      I.push({sev:'md',n:P.root,t:`OFFSET de ${C.fmtN(off)} linhas`,p:`O MySQL lê e descarta ${C.fmtN(off)} linhas antes de devolver as ${C.fmtN(cnt)} pedidas, e cada página seguinte fica mais lenta.`,
+        fix:{sql:`-- guarde o último valor de ${col} da página anterior\nWHERE ${col} ${desc?'<':'>'} :ultimo_valor\nORDER BY ${col}${desc?' DESC':''}\nLIMIT ${cnt}`,why:'Paginação por chave: cada página continua de onde a anterior parou e lê só as linhas que devolve. Precisa de um ORDER BY por coluna única e indexada.'}});
+    }
+  }
+  // ORDER BY … LIMIT com filesort numa tabela só: índice com o WHERE e o ORDER BY
+  const tables=[];C.walk(P.root,n=>{if(n.kind==='table')tables.push(n)});
+  const sort=[];C.walk(P.root,n=>{if(n.kind==='op'&&n.title==='ORDER BY'&&n.flags.includes('filesort'))sort.push(n)});
+  const iO=top('order');
+  if(tables.length===1&&sort.length&&iL>=0&&iO>=0&&lw(T[iO+1])==='by'){
+    const t=tables[0],cols=[];let dir=null,ok=true;
+    for(let i=iO+2;i<iL;){
+      const r=ref(T,i);if(!r||r.q&&r.q.toLowerCase()!==String(t.title).toLowerCase()){ok=false;break}
+      let d='asc',j=r.i1;if(['asc','desc'].includes(lw(T[j]))){d=lw(T[j]);j++}
+      if(dir&&d!==dir){ok=false;break}dir=d;cols.push(r.c);
+      if(T[j]?.v===',')j++;else if(j!==iL){ok=false;break}
+      i=j;
+    }
+    if(ok&&cols.length){
+      const tn=C.realName(P,t),eq=C.condCols(t).eq,all=[...eq,...cols.filter(c=>!eq.includes(c))];
+      I.push({sev:'md',n:sort[0],t:`Índice para ORDER BY … LIMIT em ${tn}`,p:`Com um índice na ordem pedida, o MySQL lê só as primeiras linhas e para no LIMIT, sem ordenar ${C.fmtN(t.est.rows)} linhas.`,
+        fix:{sql:`CREATE INDEX ix_${tn}_${all.join('_')}\n  ON ${tn} (${all.join(', ')});`,why:'Colunas de igualdade do WHERE primeiro, depois as do ORDER BY na mesma ordem. Confira os índices que já existem antes de criar.'}});
+    }
+  }
+  return I;
+}
+return {rewrites,advice,prep,topJoin};
+})();
+/* ---------- plano de execução: visual ---------- */
+// Diagrama em SVG puro (sem bibliotecas). O estado da visão (aba, zoom, nó selecionado) fica no
+// próprio resultado (r.pv), então trocar de aba e voltar mantém tudo onde estava.
+const PlanView=(()=>{
+const C=PlanCore,h=s=>s==null?'':esc(s);
+let E=null;   // plano montado agora: {r, el, P, st}
+const q=s=>E.el.querySelector(s);
+function model(r){
+  if(!r._P&&!r._err){try{const P={root:C.parse(r.plan),alias:refsIn(r.sql)};C.analyze(P);C.layout(P);r._P=P}catch(e){r._err=e.message}
+    if(r._P)try{const seen=new Set();r._P.ins=C.sortIns(convFix([...r._P.ins,...PlanRewrite.advice(r.sql,r._P)],r.notes)).map(i=>!i.fix||!seen.has(i.fix.sql)?(i.fix&&seen.add(i.fix.sql),i):{...i,fix:null})}catch(e){console.warn('conselhos do plano',e)}}
+  return r._P;
+}
+// Coluna de texto comparada com número (aviso 1739): o índice já existe, o problema é o tipo do
+// valor. Tira as sugestões de criar índice ou histograma nela e aponta para a aba Sugestões.
+function convFix(I,notes){
+  const F=(notes||[]).filter(n=>n[1]===1739).map(n=>(/on field '([^']+)'/.exec(n[2])||[])[1]).filter(Boolean);
+  if(!F.length)return I;
+  const hit=(sql,c)=>new RegExp('[(,\\s]'+c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(sql);
+  return I.filter(i=>!(i.fix&&/HISTOGRAM ON/.test(i.fix.sql)&&F.some(c=>hit(i.fix.sql,c))))
+    .map(i=>i.fix&&/^CREATE INDEX/.test(i.fix.sql)&&F.some(c=>hit(i.fix.sql,c))?{...i,fix:null,p:i.p+` Já existe índice em ${F.join(', ')}, mas o valor comparado é número e o MySQL não consegue usá-lo: veja a aba Sugestões.`}:i);
+}
+const nameOf=(P,n)=>{const t=C.realName(P,n);return t};
+const aliasOf=(P,n)=>{const t=C.realName(P,n);return t.toLowerCase()!==String(n.title).toLowerCase()?n.title:''};
+function html(r,i){
+  const P=model(r),st=r.pv||(r.pv={view:'diag',color:'access',sel:null,V:null});
+  const meta=`Plano estimado · ${h(r.server?.flavor)} ${h(r.server?.version)} · ${fmtMs(r.ms)}`;
+  const head=`<div class="bh"><span class="q" title="${h(r.sql)}">${h(r.sql.replace(/\s+/g,' ').slice(0,140))}</span><span class="meta" title="EXPLAIN FORMAT=JSON: a consulta não foi executada">${meta}</span>`;
+  if(!P)return `<div class="blk" data-i="${i}">${head}</div><div class="err">Não foi possível desenhar o plano: ${h(r._err)}</div>${tabular(r)}</div>`;
+  const tabs=[['diag','Diagrama'],['sug','Sugestões <span class="pv-cnt"></span>'],['tree','Árvore'],['tab','Tabela'],['raw','JSON']].map(([v,t])=>`<button data-v="${v}"${st.view===v?' class="on"':''}>${t}</button>`).join('');
+  return `<div class="blk pblk" data-i="${i}">${head}
+    <span class="pv-seg">${tabs}</span>
+    <select class="pv-color" title="Cor dos nós"><option value="access"${st.color==='access'?' selected':''}>cor: tipo de acesso</option><option value="heat"${st.color==='heat'?' selected':''}>cor: % do custo</option></select>
+    <span class="pv-zoom"><button data-z="-" title="Diminuir (−)">−</button><span class="pv-zl"></span><button data-z="+" title="Aumentar (+)">+</button><button data-z="f" title="Ajustar à tela (F)">⤢</button></span>
+    <button class="pv-svg" title="Salvar o diagrama como SVG">⤓</button></div>
+    <div class="pv-ins"></div>
+    <div class="pv-body">
+      <div class="pv-cv" tabindex="0"><svg class="pv-sv"><g class="pv-vp"></g></svg>
+        <div class="pv-leg"></div><div class="pv-mini"><svg></svg></div></div>
+      <div class="pv-view"></div>
+      <aside class="pv-det"></aside>
+    </div></div>`;
+}
+function tabular(r){
+  const t=r.tabular;if(!t||!t.columns.length)return '';
+  return `<table class="g pv-tab"><thead><tr>${t.columns.map(c=>`<th>${h(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.map(row=>`<tr data-t="${h(row[t.columns.indexOf('table')])}">${row.map(v=>v===null?'<td class="nul">NULL</td>':`<td${typeof v==='number'?' class="num"':''}>${h(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+/* --- desenho --- */
+const ew=r=>r==null?1.5:Math.min(8,1.4+1.5*Math.log10(r+1));
+// Toda seta termina subindo (dir 'u') ou indo para a direita (dir 'r'); a ponta é um triângulo
+// proporcional à espessura da linha, e a linha para na base dele (não atravessa a ponta).
+function arrow(pts,dir,c,cls=''){
+  const w=ew(C.outRows(c)),L=6+w*1.3,hw=3.5+w*.9,[tx,ty]=pts.at(-1),k=`pv-eg${cls}${c.pct>=.25?' hot':''}`;
+  const end=dir==='u'?[tx,ty+L]:[tx-L,ty];
+  const d=pts.length===2?`M${pts[0]} L${end}`:pts.length===3?`M${pts[0]} L${pts[1]} L${end}`:`M${pts[0]} C${pts[1]} ${pts[2]} ${end}`;
+  const head=dir==='u'?`M${tx},${ty} L${tx-hw},${ty+L} L${tx+hw},${ty+L}Z`:`M${tx},${ty} L${tx-L},${ty-hw} L${tx-L},${ty+hw}Z`;
+  return `<path class="${k}" d="${d}" stroke-width="${w}"/><path class="${k} pv-ah" d="${head}"/>`;
+}
+function pill(x,y,txt,hot){const w=txt.length*6+12;return `<g transform="translate(${x},${y})"><rect class="pv-pill" x="${-w/2}" y="-9" width="${w}" height="18" rx="9"${hot?' style="stroke:var(--a-red)"':''}/><text class="pv-pillt" text-anchor="middle" y="4">${h(txt)}</text></g>`}
+const rowsLabel=c=>{const r=C.outRows(c);return r==null?'':C.fmtN(r)+(r===1?' linha':' linhas')};
+function draw(){
+  const {P,st}=E,VG=C.VG,D=C.SZ.nl[1];let e='',nd='',fr='';
+  for(const f of P.frames)fr+=`<rect class="pv-frame" x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" rx="12"/><text class="pv-framet" x="${f.x+12}" y="${f.y+15}">${h(f.n.frame)}</text>`;
+  const R=D/2;   // meia diagonal do losango: os vértices ficam a R do centro
+  for(const n of P.nodes){
+    if(n.kind==='nl'){
+      const d=n._d;
+      n.children.forEach((c,i)=>{
+        if(i===0)e+=arrow([[c.x,c.y],[c.x,d[0].y],[d[0].x-R,d[0].y]],'r',c);
+        else e+=arrow([[c.x,c.y],[c.x,d[i-1].y+R]],'u',c);
+        e+=pill(c.x,c.y-VG/2,rowsLabel(c));
+      });
+      for(let i=1;i<d.length;i++){e+=arrow([[d[i-1].x+R,d[i-1].y],[d[i].x-R,d[i].y]],'r',n.children[i]);e+=pill((d[i-1].x+d[i].x)/2,d[i].y+17,rowsLabel(n.children[i]))}
+    }else n.children.forEach(c=>{
+      const px=n.x,pb=n.y+n.h,cx=c.x,cy=c.y,my=(cy+pb)/2;
+      e+=arrow(cx===px?[[cx,cy],[px,pb]]:[[cx,cy],[cx,my],[px,my],[px,pb]],'u',c,c.sub?' sub':'');
+      const runs=c.dependent&&C.outRows(n);
+      e+=pill(cx,c.frame?cy-VG+14:cy-VG/2+4,c.dependent?(runs?'executa ×'+C.fmtN(runs):'executa por linha'):c.sub?'subquery':c.edge||rowsLabel(c),c.dependent);
+    });
+    nd+=nodeSvg(n);
+  }
+  q('.pv-vp').innerHTML=fr+e+nd;
+  q('.pv-leg').innerHTML=st.color==='heat'?'<b>% do custo estimado</b><div class="pv-heat"></div><div class="pv-lr"><span>baixo</span><span>alto</span></div>'
+    :[['blue','Linha única (const)'],['green','Busca por chave'],['yellow','Full-text'],['orange','Faixa de índice'],['red','Varredura completa']].map(([c,t])=>`<span><i style="background:var(--a-${c})"></i>${t}</span>`).join('');
+  mini();if(E.st.V)view();
+}
+function nodeSvg(n){
+  const {P,st}=E,sel=st.sel===n.id?' sel':'',w=n.w,H=n.h,hc=st.color==='heat';
+  if(n.kind==='nl'){
+    const D=C.SZ.nl[1],s=D/1.41;
+    return `<g class="pv-nd${sel}" data-id="${n.id}">`+n._d.map((p,i)=>`<g transform="translate(${p.x},${p.y})"><rect class="pv-dm" x="${-s/2}" y="${-s/2}" width="${s}" height="${s}" transform="rotate(45)"/><text class="pv-dmi" text-anchor="middle" y="5">${/hash/.test(n.joins[i])?'#':'⋈'}</text><text class="pv-dml" x="${D/2-6}" y="${-D/2+2}">${h(n.joins[i])}</text></g>`).join('')+'</g>';
+  }
+  let b='';
+  const bar=`<rect class="pv-heatbg" y="${H-5}" width="${w}" height="5"/><rect y="${H-5}" width="${Math.max(2,w*n.pct)}" height="5" fill="${C.heat(n.pct)}"/>`;
+  if(n.kind==='table'){
+    const A=C.ACC[n.access],col=hc?C.heat(n.pct):C.accVar(n.access),al=aliasOf(P,n),kp=n.raw?.used_key_parts;
+    b=`<rect class="pv-bx" width="${w}" height="${H}" rx="8"/><path d="M0 8a8 8 0 0 1 8-8h${w-16}a8 8 0 0 1 8 8v14h-${w}z" fill="${col}"/>
+      <text class="pv-bl" x="10" y="15">${h(A?.en||n.access||'?')}</text>${n.flags.includes('índice de cobertura')?`<text class="pv-bl" x="${w-10}" y="15" text-anchor="end">◆ cobertura</text>`:''}
+      <text class="pv-nm" x="10" y="41">${h(clip(nameOf(P,n),22))}${al?`<tspan class="pv-al"> ${h(al)}</tspan>`:''}${n.derived?'<tspan class="pv-al"> derivada</tspan>':''}</text>
+      <text class="pv-ky" x="10" y="58">${n.key?h(clip('índice '+n.key+(kp?' ('+kp.join(', ')+')':''),30)):'sem índice'}</text>
+      <text class="pv-ft" x="10" y="77"><tspan>${C.fmtN(n.est.scan)} lidas</tspan><tspan class="pv-mt"> · custo ${C.fmtN(n.est.cost)}${n.mult>1?' ×'+C.fmtN(n.mult):''} · ${C.pctS(n.pct)}</tspan></text>${bar}`;
+  }else if(n.kind==='op'){
+    const sc=(n.flags.includes('tabela temporária')?1:0)+(n.flags.includes('filesort')?(n.title==='GROUP BY'?1:2):0);
+    const oc=hc?'var(--line)':['var(--a-yellow)','var(--a-orange)','var(--a-red)'][Math.min(2,sc)];
+    b=`<rect class="pv-bx" width="${w}" height="${H}" rx="${H/2}" style="stroke:${oc};stroke-width:2"/><text class="pv-op" x="${w/2}" y="${n.flags.length?20:29}" text-anchor="middle">${h(clip(n.title,20))}</text>${n.flags.length?`<text class="pv-fl" x="${w/2}" y="36" text-anchor="middle">${h(n.flags.join(' · '))}</text>`:''}`;
+  }else if(n.kind==='block'){
+    b=`<rect class="pv-blk" width="${w}" height="${H}" rx="10"/><text class="pv-blkt" x="${w/2}" y="20" text-anchor="middle">${h(n.title)}</text><text class="pv-blks" x="${w/2}" y="35" text-anchor="middle">${n.est.cost!=null?'custo '+C.fmtN(n.est.cost):''}</text>`;
+  }else b=`<rect class="pv-bx" width="${w}" height="${H}" rx="8"/><text x="${w/2}" y="24" text-anchor="middle">${h(clip(n.title,28))}</text>`;
+  return `<g class="pv-nd${sel}" data-id="${n.id}" transform="translate(${n.x-w/2},${n.y})">${b}</g>`;
+}
+const clip=(s,n)=>(s=String(s)).length>n?s.slice(0,n-1)+'…':s;
+
+/* --- zoom, arrastar, minimapa --- */
+function view(){const V=E.st.V;if(!V)return;q('.pv-vp').setAttribute('transform',`translate(${V.x},${V.y}) scale(${V.k})`);q('.pv-zl').textContent=Math.round(V.k*100)+'%';miniVp()}
+function fit(){const {P,st}=E,c=q('.pv-cv'),m=32;if(!c.clientWidth)return;const k=Math.min(1.1,(c.clientWidth-m*2)/P.W,(c.clientHeight-m*2-24)/P.H);
+  st.V={k:Math.max(.2,k),x:(c.clientWidth-P.W*Math.max(.2,k))/2,y:Math.max(m,(c.clientHeight-P.H*Math.max(.2,k))/2)};st.auto=true;view()}
+function zoomAt(f,cx,cy){const V=E.st.V;if(!V)return;const k=Math.max(.2,Math.min(3,V.k*f));V.x=cx-(cx-V.x)*k/V.k;V.y=cy-(cy-V.y)*k/V.k;V.k=k;E.st.auto=false;view()}
+function center(n){const c=q('.pv-cv'),V=E.st.V;if(!V)return;V.x=c.clientWidth/2-n.x*V.k;V.y=c.clientHeight/2-(n.y+n.h/2)*V.k;E.st.auto=false;view()}
+function mini(){const {P,st}=E,s=q('.pv-mini svg');s.setAttribute('viewBox',`-20 -20 ${P.W+40} ${P.H+40}`);
+  s.innerHTML=P.nodes.map(n=>n.kind==='nl'?n._d.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="14" fill="var(--mut)"/>`).join(''):`<rect x="${n.x-n.w/2}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8" fill="${n.kind==='table'?(st.color==='heat'?C.heat(n.pct):C.accVar(n.access)):'var(--mut)'}" opacity=".8"/>`).join('')+'<rect class="pv-vpr" rx="6"/>';miniVp()}
+function miniVp(){const r=q('.pv-vpr'),c=q('.pv-cv'),{P,st}=E,V=st.V;if(!r||!V)return;
+  // O minimapa só aparece quando o plano não cabe inteiro na tela.
+  q('.pv-mini').style.display=c.clientWidth<560||(V.x>=0&&V.y>=0&&V.x+P.W*V.k<=c.clientWidth&&V.y+P.H*V.k<=c.clientHeight)?'none':'';
+  r.setAttribute('x',-V.x/V.k);r.setAttribute('y',-V.y/V.k);r.setAttribute('width',c.clientWidth/V.k);r.setAttribute('height',c.clientHeight/V.k)}
+
+/* --- tooltip e detalhes --- */
+const byId=id=>E.P.nodes.find(n=>n.id===id)||(()=>{let r=null;C.walk(E.P.root,n=>{if(n.id===id)r=n});return r})();
+function tip(ev){
+  const g=ev.target.closest?.('.pv-nd'),t=$('#pvtip');if(!g||E.drag){t.style.display='none';return}
+  const n=byId(+g.dataset.id),P=E.P,A=C.ACC[n.access],r=(a,b)=>`<div class="r"><span class="h">${a}</span><span>${b}</span></div>`;
+  let s=n.kind==='nl'?'<b>Junção</b><div class="h">Para cada linha que chega da esquerda, o MySQL busca as correspondentes na tabela de baixo.</div>'
+    :`<b>${h(n.kind==='table'?nameOf(P,n):n.title)}</b>`+(A?`<div class="h">${h(A.pt)}: ${h(A.hint)}</div>`:'');
+  if(n.kind==='table')s+=r('linhas lidas',C.fmtN(n.est.scan))+r('linhas que seguem',C.fmtN(n.est.rows))+r('custo',C.fmtN(n.est.cost)+' · '+C.pctS(n.pct));
+  s+='<div class="h" style="margin-top:4px;font-size:11.5px">clique: detalhes · duplo clique: achar no editor</div>';
+  t.innerHTML=s;t.style.display='block';
+  t.style.left=Math.min(innerWidth-t.offsetWidth-8,ev.clientX+14)+'px';t.style.top=Math.min(innerHeight-t.offsetHeight-8,ev.clientY+14)+'px';
+}
+function select(id){
+  E.st.sel=id;E.el.querySelectorAll('.pv-nd').forEach(g=>g.classList.toggle('sel',+g.dataset.id===id));
+  q('.pv-det').classList.toggle('show',id!=null);details();if(E.st.view!=='diag')other();
+}
+const SEV={hi:'red',md:'orange',lo:'yellow',inf:'blue',ok:'green'};
+function details(){
+  const {P,r,st}=E,n=st.sel!=null&&byId(st.sel);
+  if(!n){
+    setDet(`<div class="pv-empty"><b>Plano estimado</b><br>Previsão do otimizador (EXPLAIN FORMAT=JSON). A consulta não foi executada.<br><br>Clique num nó para ver os detalhes; duplo clique acha a tabela no editor.<br>Roda do mouse: zoom · arrastar: mover · <kbd>F</kbd>: ajustar.</div>`
+      +(r.rewritten?`<h4>Como o MySQL interpretou a consulta</h4>${code(rewritten(r),'interpretada')}<div class="pv-hint">Não é uma versão mais rápida: é a mesma consulta depois das transformações internas do otimizador (SELECT * expandido, JOINs normalizados, condições movidas e propagadas). Executá-la gera o mesmo plano. Vem do SHOW WARNINGS logo após o EXPLAIN.</div>`:'')
+      +(r.notes?.length?'<h4>Avisos do servidor</h4>'+r.notes.map(x=>`<div class="pv-tip2">${h(x[0])} ${h(x[1])}: ${h(x[2])}</div>`).join(''):''));
+    return;
+  }
+  const A=C.ACC[n.access],raw=n.raw||{},row=(a,b)=>b==null||b===''?'':`<tr><td>${a}</td><td>${b}</td></tr>`;
+  let s=`<button class="pv-x" title="Fechar (Esc)">×</button><h3>${A?`<span class="pv-acc" style="background:${C.accVar(n.access)}">${h(n.access)}</span>`:''}${h(n.kind==='nl'?'Junção':n.kind==='table'?nameOf(P,n):n.title)}${n.kind==='table'&&aliasOf(P,n)?` <small>${h(aliasOf(P,n))}</small>`:''}</h3>`;
+  if(A)s+=`<div class="pv-hint"><b>${h(A.pt)}</b> <span class="mono">(${h(A.en)})</span><br>${h(A.hint)}</div>`;
+  if(n.flags.length)s+=`<div class="pv-chips">${n.flags.map(f=>`<span class="pv-chip${/temp|filesort|buffer/.test(f)?' w':''}">${h(f)}</span>`).join('')}</div>`;
+  const mine=P.ins.filter(x=>x.n===n);
+  if(mine.length)s+='<h4>Diagnóstico</h4>'+mine.map(insHtml).join('');
+  if(n.kind==='table'){
+    const e=n.est;
+    s+=`<h4>Índice</h4><table>${row('usado',n.key?`<b class="mono">${h(n.key)}</b>`:'<span style="color:var(--a-red)">nenhum</span>')}${row('partes usadas',h(raw.used_key_parts?.join(', ')))}${row('tamanho da chave',h(raw.key_length))}${row('ref',h(raw.ref?.join(', ')))}${row('possíveis',h(raw.possible_keys?.join(', ')))}</table>`;
+    s+=`<h4>Linhas (estimadas)</h4><table>${row('lidas por varredura',C.fmtN(e.scan))}${row('seguem para o próximo passo',C.fmtN(e.rows))}${row('filtered',e.filtered!=null?C.nf.format(e.filtered)+'% <span class="pv-mt">(100% é o ideal)</span>':null)}${row('dados lidos',h(e.data))}</table>`;
+    s+=`<h4>Custo</h4><table>${row('leitura',C.fmtN(e.read))}${row('avaliação',C.fmtN(e.eval))}${row('acumulado (prefix)',C.fmtN(e.prefix))}${n.mult>1?row('execuções estimadas',C.fmtN(n.mult)+' <span class="pv-mt">(dentro de subquery dependente)</span>'):''}${row('% do total',`${C.pctS(n.pct)}<div class="pv-bar"><i style="width:${n.pct*100}%;background:${C.heat(n.pct)}"></i></div>`)}</table>`;
+    if(n.cond)s+=`<h4>Condição aplicada</h4>${code(C.cleanCond(n.cond))}`;
+    if(raw.used_columns)s+=`<h4>Colunas usadas</h4><div class="pv-chips">${raw.used_columns.map(c=>`<span class="pv-chip mono">${h(c)}</span>`).join('')}</div>`;
+  }else if(n.kind==='nl'){
+    s+=`<div class="pv-hint">A primeira tabela dirige: para cada linha dela, o MySQL busca as correspondentes nas próximas, nesta ordem.</div><h4>Ordem do JOIN</h4><table>${n.children.map((c,i)=>row(i+1+'º',`${h(c.kind==='table'?nameOf(P,c):c.title)} <span class="pv-mt">→ ${C.fmtN(C.outRows(c))} linhas${i?' · '+h(n.joins[i-1]):''}</span>`)).join('')}</table>`;
+  }else{
+    s+=`<table>${row('tipo',n.kind==='block'?'bloco SELECT':'operação')}${row('detalhe',h(n.detail))}${row('linhas',C.fmtN(C.outRows(n)))}${row(n.kind==='block'?'custo do bloco':'custo',n.est.cost!=null?C.fmtN(n.est.cost):null)}</table>`;
+    if(n.dependent)s+=`<div class="pv-tip2" style="--sev:var(--a-red)">Correlacionada: depende de colunas da consulta de fora e é executada de novo para cada linha.</div>`;
+  }
+  s+=`<details class="pv-rawd"><summary>Dados brutos (JSON do nó)</summary><pre class="mono pv-rawn">${h(JSON.stringify(raw,(k,v)=>/^(materialized_from_subquery|materialized|attached_subqueries|nested_loop|query_specifications|table)$/.test(k)&&k!==''?'…':v,2))}</pre></details>`;
+  setDet(s);
+}
+// SQL no painel: editor só de leitura com as cores do editor principal, mais Copiar / Abrir em nova aba.
+let codeViews=[];
+const code=(sql,tab)=>`<div class="pv-codew"><div class="pv-code" data-sql="${h(sql)}"></div>${tab?`<div class="pv-codeb"><button class="pv-cp" data-sql="${h(sql)}">Copiar</button><button class="pv-open" data-sql="${h(sql)}" data-title="${h(tab)}">Abrir em nova aba</button></div>`:''}</div>`;
+let viewCodes=[];
+function hydrate(el,html,list){list.forEach(v=>v.destroy());list.length=0;el.innerHTML=html;el.querySelectorAll('.pv-code').forEach(c=>list.push(codeView(c,c.dataset.sql)))}
+const setDet=html=>hydrate(q('.pv-det'),html,codeViews);
+// "/* select#1 */ select `app`.`t`.`c` ..." -> SQL formatado e sem o nome do banco repetido
+function rewritten(r){
+  let s=r.rewritten.replace(/\/\* select#\d+ \*\/\s*/g,'');
+  if(r.db)s=s.split('`'+r.db.replace(/`/g,'``')+'`.').join('');
+  return SqlFormat.format(C.cleanCond(s));
+}
+const insHtml=x=>`<div class="pv-tip2" style="--sev:var(--a-${SEV[x.sev]})"><b>${h(x.t)}</b><br>${h(x.p)}${x.fix?`${code(x.fix.sql,'índice')}<span class="pv-mt">${h(x.fix.why)}</span>`:''}</div>`;
+// Faixa de diagnósticos: recolhida (só ícone e título) ou aberta (com os detalhes). Fica lembrado.
+const insOpen=()=>{try{return localStorage.getItem('pvInsOpen')==='1'}catch(_){return false}};
+function insToggle(){try{localStorage.setItem('pvInsOpen',insOpen()?'0':'1')}catch(_){}insights()}
+function insights(){
+  const I=E.P.ins,b=q('.pv-ins'),R=(E.r.rw||[]).filter(x=>realWin(x)||x.state==='ok'&&x.real?.state!=='ok');
+  b.style.display=I.length||R.length?'':'none';
+  b.classList.toggle('open',insOpen());
+  const cnt=(E.r.rw||[]).filter(x=>x.state!=='err').length,c=q('.pv-cnt');if(c)c.textContent=cnt?`(${cnt})`:'';
+  const tg=`<button class="pv-instg" title="${insOpen()?'Recolher os diagnósticos':'Mostrar os detalhes de todos os diagnósticos'}">${insOpen()?'▴ recolher':'▾ detalhes'}</button>`;
+  b.innerHTML=tg+R.map(x=>`<div class="pv-ic pv-rwc" style="--sev:var(--a-green)" title="Ver a consulta reescrita"><span class="pv-sv">✓</span><div><b>${h(x.title)}</b><p>${realWin(x)?`Tempo real ${fmtMs(x.real.before)} → ${fmtMs(x.real.after)} (${pct(x.real.before,x.real.after)}), medido com EXPLAIN ANALYZE.`:`Custo estimado ${C.fmtN(x.before)} → ${C.fmtN(x.after)} (${gain(x)}), conferido com EXPLAIN.`}</p><p class="pv-go">Ver consulta reescrita →</p></div></div>`).join('')+I.map((x,k)=>`<div class="pv-ic" style="--sev:var(--a-${SEV[x.sev]})" data-k="${k}" title="${h(x.p)}"><span class="pv-sv">${x.sev==='hi'?'!':x.sev==='md'?'▲':'i'}</span><div><b>${h(x.t)}</b><p>${h(x.p)}</p>${x.fix?'<p class="pv-go">Ver sugestão →</p>':''}</div></div>`).join('');
+}
+// Duplo clique: seleciona a tabela (e o apelido) no editor, dentro da consulta explicada.
+function findInEditor(n){
+  if(n.kind!=='table')return;
+  const doc=editor.state.doc.toString(),base=doc.indexOf(E.r.sql);if(base<0)return toast('A consulta mudou no editor');
+  const t=nameOf(E.P,n),a=aliasOf(E.P,n),re=t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const m=new RegExp('`?\\b'+re+'\\b`?'+(a?'(?:\\s+(?:as\\s+)?`?'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b`?)?':''),'i').exec(E.r.sql);
+  if(!m)return toast('Tabela não encontrada no texto da consulta');
+  editor.dispatch({selection:{anchor:base+m.index,head:base+m.index+m[0].length},scrollIntoView:true});editor.focus();
+}
+
+// arredonda para baixo: um ganho de 99,6% aparece como −99%, nunca como −100%
+const pct=(b,a)=>(a<=b?'−':'+')+C.nf.format(Math.floor(Math.abs(1-a/b)*100))+'%';
+const gain=x=>pct(x.before,x.after);
+const realWin=x=>x.real?.state==='ok'&&x.real.after<x.real.before*.9;
+const refresh=r=>{if(E?.r===r){insights();if(E.st.view==='sug')other()}};
+// Tempo real com EXPLAIN ANALYZE: EXECUTA as consultas (só leitura; as linhas não são trazidas).
+// Quando é rápido, roda duas vezes e fica com o menor tempo, para tirar o efeito do cache frio.
+async function timeOf(r,sql,box){
+  const run=async()=>{const qid=Math.random().toString(36).slice(2);box.qid=qid;
+    const a=await apiPw('/api/measure',{alias:r.alias,db:r.db,sql,qid});if(a.error)throw new Error(a.error);return a.ms};
+  const t=await run();return t<2000?Math.min(t,await run()):t;
+}
+const RUN_MSG='Isto EXECUTA a consulta atual e as alternativas no servidor, só para medir o tempo (as linhas não são trazidas).\n\nEm tabelas grandes pode demorar e pesar no banco. Continuar?';
+async function measure(r,list){
+  if(!confirm(RUN_MSG))return;
+  for(const x of list)x.real={state:'run'};
+  r.base=r.base?.state==='ok'?r.base:{state:'run'};refresh(r);
+  try{if(r.base.state!=='ok')r.base={state:'ok',ms:await timeOf(r,r.sql,r.base)}}
+  catch(e){r.base={state:'err',err:e.message};for(const x of list)x.real={state:'err',err:e.message};return refresh(r)}
+  for(const x of list){
+    refresh(r);
+    try{x.real={state:'ok',before:r.base.ms,after:await timeOf(r,x.sql,x.real)}}catch(e){x.real={state:'err',err:e.message}}
+  }
+  refresh(r);
+}
+
+/* --- reescritas e alternativas: valida cada uma com EXPLAIN (não executa a consulta) --- */
+const orderOf=P=>PlanRewrite.topJoin(P)?.children.map(c=>c.title);
+async function validate(r){
+  const base=r._P.total;
+  for(const x of r.rw){
+    const resp=await api('/api/explain',{alias:r.alias,db:r.db,sql:x.sql});
+    if(resp.error){x.state='err';x.err=resp.error;console.warn('reescrita inválida',x.id,resp.error,x.sql)}
+    else try{
+      const P2=C.analyze({root:C.parse(resp.plan),alias:refsIn(resp.sql)});
+      x.before=base;x.after=P2.total;x.resp=resp;x.state=x.after<base*.95?'ok':'flat';
+      // hint ignorado pelo servidor (versão antiga, LEFT JOIN que obriga a ordem…): não é alternativa
+      if(x.expect&&String(orderOf(P2))!==String(x.expect)){x.state='err';x.err='ordem não aplicada'}
+    }catch(e){x.state='err';x.err=e.message}
+    refresh(r);
+  }
+}
+function suggestions(){
+  const {r}=E,L=(r.rw||[]).filter(x=>x.state!=='err');
+  if(!L.length)return `<div class="pv-empty">Nenhuma reescrita ou alternativa de plano se aplica a esta consulta.<br><br>
+    O app procura: subquery correlacionada com agregação (vira JOIN), DATE()/YEAR() sobre a coluna (vira faixa), texto comparado com número e, em JOINs, outras ordens de leitura das tabelas. Veja também os diagnósticos acima: índices na coluna de junção, histogramas para estimativas chutadas, OFFSET grande e ORDER BY … LIMIT.</div>`;
+  const orig=SqlFormat.format(r.sql),readOnly=/^[(\s]*(select|with|table)\b/i.test(sqlCommand(r.sql));
+  const rank=x=>realWin(x)?0:x.state==='ok'?1:x.state==='wait'?2:x.kind==='hint'?3:4;
+  const B=r.base,run=L.some(x=>x.real?.state==='run'),can=readOnly&&L.some(x=>x.resp&&!x.real);
+  const head=`<div class="pv-sughead"><span>${L.length} sugest${L.length>1?'ões':'ão'}${B?.state==='ok'?` · consulta atual: <b>${fmtMs(B.ms)}</b> de verdade`:''}</span><span class="sp"></span>
+    ${readOnly?`<button class="pv-measureall"${run||!can?' disabled':''} title="Executa a consulta atual e cada alternativa (só leitura) com EXPLAIN ANALYZE e compara o tempo">⏱ Medir todas de verdade</button>`:'<span class="pv-mt">Medir só está disponível para SELECT.</span>'}</div>`;
+  return head+L.sort((a,b)=>rank(a)-rank(b)).map(x=>{
+    const k=r.rw.indexOf(x),sql=SqlFormat.format(x.sql),hint=x.kind==='hint';
+    const st=x.state==='wait'?'<span class="pv-badge">conferindo com EXPLAIN…</span>'
+      :x.state==='ok'?`<span class="pv-badge ok">custo ${C.fmtN(x.before)} → ${C.fmtN(x.after)} · ${gain(x)}</span>`
+      :`<span class="pv-badge">${hint?'custo estimado':'sem ganho estimado'} ${C.fmtN(x.before)} → ${C.fmtN(x.after)}</span>`;
+    const R=x.real,rt=!R?'':R.state==='run'?'<span class="pv-badge">medindo… <a href="#" class="pv-mcancel" data-k="'+k+'">cancelar</a></span>'
+      :R.state==='err'?`<span class="pv-badge bad" title="${h(R.err)}">não foi possível medir</span>`
+      :`<span class="pv-badge ${realWin(x)?'ok':R.after>R.before*1.1?'bad':''}">tempo real ${fmtMs(R.before)} → ${fmtMs(R.after)} · ${pct(R.before,R.after)}</span>`;
+    const note=x.state!=='flat'||R?'':hint?'<p>O otimizador estima um custo maior para esta ordem (por isso não a escolheu). Se as estimativas dele estiverem erradas, ela pode ser mais rápida: só a medição real decide.</p>'
+      :'<p>O otimizador não estima ganho, mas as estimativas erram bastante com tabelas derivadas e subqueries. Meça de verdade antes de descartar.</p>';
+    return `<section class="pv-rw ${realWin(x)?'ok':x.state}"><h3>${hint?'<span class="pv-kind">alternativa de plano</span>':''}${h(x.title)} ${st} ${rt}</h3>${note}<p>${h(x.why)}</p>${x.caveat?`<p class="pv-cav">⚠ ${h(x.caveat)}</p>`:''}
+      <div class="pv-cols"><div><h4>Atual</h4><div class="pv-code" data-sql="${h(orig)}"></div></div><div><h4>${hint?'Com a ordem forçada':'Sugerida'}</h4><div class="pv-code" data-sql="${h(sql)}"></div></div></div>
+      <div class="pv-codeb"><button class="pv-rwopen pri" data-k="${k}"${x.resp?'':' disabled'}>Abrir em nova aba com o plano</button><button class="pv-cp" data-sql="${h(sql+';')}">Copiar</button>${x.resp&&readOnly?`<button class="pv-measure" data-k="${k}"${R?.state==='run'?' disabled':''} title="Executa a consulta atual e esta (só leitura) com EXPLAIN ANALYZE e compara o tempo">⏱ Medir de verdade</button>`:''}</div></section>`;
+  }).join('')+'<p class="pv-hint" style="padding:4px 14px 14px">Os custos são estimativas do otimizador; os tempos reais vêm do EXPLAIN ANALYZE. Confira o resultado da consulta nova antes de trocar a original.</p>';
+}
+
+/* --- outras visões --- */
+function setView(v){E.st.view=v;E.el.querySelectorAll('.pv-seg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  const d=v==='diag';q('.pv-cv').style.display=d?'':'none';q('.pv-view').style.display=d?'none':'block';
+  E.el.querySelectorAll('.pv-zoom,.pv-svg,.pv-color').forEach(x=>x.style.visibility=d?'':'hidden');
+  if(d){draw();if(!E.st.V||E.st.auto)fit()}else other()}
+function other(){
+  const {P,r,st}=E,v=st.view,w=q('.pv-view');
+  if(v==='tree'){
+    let s='<table class="g"><thead><tr><th>Nó</th><th>Acesso</th><th>Índice</th><th class="num">Lidas</th><th class="num">Seguem</th><th class="num">filtered</th><th>Custo</th></tr></thead><tbody>';
+    C.walk(P.root,(n,p,d)=>{const A=C.ACC[n.access],nm=n.kind==='nl'?`junção (${n.children.length} tabelas)`:n.kind==='table'?nameOf(P,n)+(aliasOf(P,n)?' '+aliasOf(P,n):''):n.title,t=n.kind==='table';
+      s+=`<tr data-id="${n.id}"${st.sel===n.id?' class="sel"':''}><td><span class="pv-tn" style="padding-left:${d*18}px">${d?'└ ':''}${t?`<i style="background:${C.accVar(n.access)}"></i>`:''}<b>${h(nm)}</b>${n.flags.length?` <span class="pv-w">${h(n.flags.join(', '))}</span>`:''}</span></td>
+        <td>${A?h(A.pt):''}</td><td class="mono">${h(n.key)}</td><td class="num">${t?C.fmtN(n.est.scan):''}</td><td class="num">${t?C.fmtN(n.est.rows):''}</td><td class="num">${t&&n.est.filtered!=null?C.nf.format(n.est.filtered)+'%':''}</td>
+        <td>${t?`<div class="pv-pct">${C.fmtN(n.est.cost)}<div class="pv-bar"><i style="width:${n.pct*100}%;background:${C.heat(n.pct)}"></i></div><span class="pv-mt">${C.pctS(n.pct)}</span></div>`:n.est.cost!=null?C.fmtN(n.est.cost):''}</td></tr>`});
+    w.innerHTML=s+'</tbody></table>';
+  }else if(v==='sug')hydrate(w,suggestions(),viewCodes);
+  else if(v==='tab')w.innerHTML=tabular(r)+'<div class="pv-hint" style="padding:10px 12px">EXPLAIN tradicional, o mesmo do terminal.</div>';
+  else{
+    let src=r.plan;try{src=JSON.stringify(JSON.parse(r.plan),null,2)}catch(_){}
+    w.innerHTML=`<div class="pv-rawbar"><span class="pv-mt">Saída do EXPLAIN FORMAT=JSON</span><span class="sp"></span><button class="pv-cpj">Copiar JSON</button></div><pre class="mono pv-raw">${h(src).replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(-?\d+(?:\.\d+)?|true|false|null)\b/g,(m,a,c,n)=>a?`<span class="${c?'k':'s'}">${a}</span>${c||''}`:`<span class="n">${n}</span>`)}</pre>`;
+  }
+}
+
+/* --- exportar --- */
+function exportSvg(){
+  const {P}=E,live=q('.pv-sv'),s=live.cloneNode(true),a=live.querySelectorAll('*'),b=s.querySelectorAll('*');
+  b.forEach((el,i)=>{const cs=getComputedStyle(a[i]);for(const p of ['fill','stroke','stroke-width','stroke-dasharray','opacity','font-size','font-weight','font-family'])el.style[p]=cs[p]});
+  s.querySelector('.pv-vp').setAttribute('transform','translate(30,30)');
+  s.setAttribute('viewBox',`0 0 ${P.W+60} ${P.H+60}`);s.setAttribute('width',P.W+60);s.setAttribute('height',P.H+60);s.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  s.insertAdjacentHTML('afterbegin',`<rect width="100%" height="100%" fill="${getComputedStyle(document.body).backgroundColor}"/>`);
+  const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([s.outerHTML],{type:'image/svg+xml'}));l.download='plano.svg';l.click();setTimeout(()=>URL.revokeObjectURL(l.href),3000);
+}
+
+/* --- montagem: liga os eventos ao bloco recém-desenhado --- */
+function mount(el,r){
+  const P=model(r);if(!P)return;
+  E={r,el,P,st:r.pv};
+  const cv=q('.pv-cv');
+  if(!r.rw){try{r.rw=PlanRewrite.rewrites(r.sql,P,r.notes,r.server).map(x=>({...x,state:'wait'}))}catch(e){r.rw=[];console.warn('reescritas',e)}if(r.rw.length&&r.alias)validate(r)}
+  insights();details();q('.pv-det').classList.toggle('show',E.st.sel!=null);
+  // espera o layout do bloco para medir a área do diagrama
+  requestAnimationFrame(()=>{if(E?.el===el)setView(E.st.view)});
+  cv.addEventListener('wheel',e=>{e.preventDefault();const b=cv.getBoundingClientRect();zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX-b.left,e.clientY-b.top)},{passive:false});
+  cv.addEventListener('pointerdown',e=>{if(e.button||e.target.closest('.pv-mini'))return;E.drag={x:e.clientX,y:e.clientY,vx:E.st.V.x,vy:E.st.V.y,moved:false};cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener('pointermove',e=>{const d=E.drag;if(!d)return tip(e);const dx=e.clientX-d.x,dy=e.clientY-d.y;
+    if(!d.moved&&Math.abs(dx)+Math.abs(dy)>3){d.moved=true;cv.classList.add('drag');$('#pvtip').style.display='none'}
+    if(d.moved){E.st.V.x=d.vx+dx;E.st.V.y=d.vy+dy;E.st.auto=false;view()}});
+  cv.addEventListener('pointerup',e=>{const d=E.drag;E.drag=null;cv.classList.remove('drag');
+    if(d&&!d.moved){const g=document.elementFromPoint(e.clientX,e.clientY)?.closest('.pv-nd');select(g?+g.dataset.id:null)}});
+  cv.addEventListener('dblclick',e=>{const g=e.target.closest('.pv-nd');if(g)findInEditor(byId(+g.dataset.id))});
+  cv.addEventListener('pointerleave',()=>$('#pvtip').style.display='none');
+  cv.addEventListener('keydown',e=>{const k=e.key,mid=[cv.clientWidth/2,cv.clientHeight/2];
+    if(k==='f'||k==='F')fit();else if(k==='+'||k==='=')zoomAt(1.2,...mid);else if(k==='-')zoomAt(1/1.2,...mid);else if(k==='Escape'&&E.st.sel!=null){e.preventDefault();select(null)}else return;e.preventDefault()});
+  q('.pv-mini').addEventListener('pointerdown',e=>{e.stopPropagation();const s=q('.pv-mini svg');
+    const mv=ev=>{const pt=s.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const p=pt.matrixTransform(s.getScreenCTM().inverse()),V=E.st.V;V.x=cv.clientWidth/2-p.x*V.k;V.y=cv.clientHeight/2-p.y*V.k;E.st.auto=false;view()};
+    mv(e);const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+  el.addEventListener('click',e=>{
+    const v=e.target.closest('.pv-seg button');if(v)return setView(v.dataset.v);
+    const z=e.target.closest('.pv-zoom button');if(z){const mid=[cv.clientWidth/2,cv.clientHeight/2];return z.dataset.z==='f'?fit():zoomAt(z.dataset.z==='+'?1.2:1/1.2,...mid)}
+    if(e.target.closest('.pv-svg'))return exportSvg();
+    if(e.target.closest('.pv-x'))return select(null);
+    const cp=e.target.closest('.pv-cp');if(cp)return copy(cp.dataset.sql);
+    const op=e.target.closest('.pv-open');if(op){newTab(op.dataset.sql+'\n',op.dataset.title);editor.focus();return}
+    if(e.target.closest('.pv-cpj'))return copy(E.r.plan);
+    if(e.target.closest('.pv-instg'))return insToggle();
+    if(e.target.closest('.pv-rwc'))return setView('sug');
+    const ms=e.target.closest('.pv-measure');if(ms)return measure(E.r,[E.r.rw[+ms.dataset.k]]);
+    if(e.target.closest('.pv-measureall'))return measure(E.r,E.r.rw.filter(x=>x.resp&&x.state!=='err'&&x.real?.state!=='ok'));
+    const mc=e.target.closest('.pv-mcancel');if(mc){e.preventDefault();const x=E.r.rw[+mc.dataset.k],qid=E.r.base?.state==='run'?E.r.base.qid:x.real?.qid;if(qid)api('/api/cancel',{alias:E.r.alias,qid});return}
+    const ro=e.target.closest('.pv-rwopen');if(ro){const x=E.r.rw[+ro.dataset.k],a=E.r.alias,db=E.r.db;const t=newTab(SqlFormat.format(x.sql)+';\n','reescrita');t.results=[planResult(x.resp,a,db)];renderRes();editor.focus();return}
+    const ic=e.target.closest('.pv-ic');if(ic){const x=E.P.ins[+ic.dataset.k];if(E.st.view!=='diag')setView('diag');select(x.n.id);if(x.n.x!=null)center(x.n);return}
+    const tr=e.target.closest('.pv-view tr[data-id]');if(tr)return select(+tr.dataset.id);
+    const tt=e.target.closest('.pv-view tr[data-t]');if(tt){const n=E.P.nodes.find(n=>n.kind==='table'&&n.title===tt.dataset.t);if(n)select(n.id)}
+  });
+  q('.pv-color').addEventListener('change',e=>{E.st.color=e.target.value;draw()});
+}
+addEventListener('resize',()=>{if(E&&E.el.isConnected&&E.st.view==='diag'&&E.st.V){if(E.st.auto)fit();else miniVp()}});
+return {html,mount};
+})();
+/* ---------- plano de execução: ação "Explicar" ---------- */
+// Mesma escolha de trecho do Executar: a seleção ou a consulta sob o cursor. O servidor roda
+// EXPLAIN FORMAT=JSON, que não executa a consulta — vale até para UPDATE e DELETE.
+const planResult=(r,alias,db)=>({sql:r.sql,columns:[],rows:[],plan:r.plan,rewritten:r.rewritten,notes:r.notes,tabular:r.tabular,server:r.server,ms:r.ms,db,alias});
+async function explain(){
+  const t=cur();if(!t)return;
+  if(t.running)return toast('Já executando — use Cancelar (Esc)');
+  const {doc,selection}=editor.state,{from,to,empty}=selection.main;
+  let sql;
+  try{
+    if(!empty){sql=doc.sliceString(from,to);if(!sqlStatements(sql).length)return toast('Nenhuma consulta para explicar')}
+    else{
+      const a=statementAt(doc,from);if(!a)return toast('Nenhuma consulta para explicar');
+      const st=doc.sliceString(a.from,a.to);sql=a.delimiter===';'?st:'DELIMITER '+a.delimiter+'\n'+st;
+    }
+  }catch(error){if(!(error instanceof SqlParseError))throw error;return toast(error.message)}
+  if(!S.alias)return toast('Escolha uma conexão');
+  if(!replaceResults(t))return;
+  t.running=true;t.error=null;t.qid=Math.random().toString(36).slice(2);t.t0=Date.now();t.qalias=S.alias;
+  if(t===cur())renderRes();
+  updateRun();startTick();
+  const r=await apiPw('/api/explain',{alias:t.qalias,db:S.db,sql,qid:t.qid});
+  t.running=false;t.back=[];
+  t.results=r.error?[]:[planResult(r,t.qalias,S.db)];
+  t.error=r.error||null;
+  if(t===cur()){renderRes();hideRec();updateRun()}
+}
+
 (async function init(){
   pingLoop();
   updStatus();setTimeout(updStatus,12000);setInterval(()=>{if(!DEAD)updStatus()},15*60000);

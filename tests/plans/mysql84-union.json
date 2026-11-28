@@ -1,0 +1,72 @@
+{
+ "sql": "SELECT id FROM cursos WHERE vagas > 90 UNION SELECT curso_id FROM inscricoes WHERE status = 'pendente' ORDER BY 1",
+ "plan": {
+  "query_block": {
+   "union_result": {
+    "using_temporary_table": true,
+    "select_id": 3,
+    "table_name": "<union1,2>",
+    "access_type": "ALL",
+    "using_filesort": true,
+    "query_specifications": [
+     {
+      "dependent": false,
+      "cacheable": true,
+      "query_block": {
+       "select_id": 1,
+       "cost_info": {
+        "query_cost": "30.25"
+       },
+       "table": {
+        "table_name": "cursos",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 300,
+        "rows_produced_per_join": 99,
+        "filtered": "33.33",
+        "cost_info": {
+         "read_cost": "20.25",
+         "eval_cost": "10.00",
+         "prefix_cost": "30.25",
+         "data_read_per_join": "32K"
+        },
+        "used_columns": [
+         "id",
+         "vagas"
+        ],
+        "attached_condition": "(`app`.`cursos`.`vagas` > 90)"
+       }
+      }
+     },
+     {
+      "dependent": false,
+      "cacheable": true,
+      "query_block": {
+       "select_id": 2,
+       "cost_info": {
+        "query_cost": "15124.25"
+       },
+       "table": {
+        "table_name": "inscricoes",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 150040,
+        "rows_produced_per_join": 15004,
+        "filtered": "10.00",
+        "cost_info": {
+         "read_cost": "13623.85",
+         "eval_cost": "1500.40",
+         "prefix_cost": "15124.25",
+         "data_read_per_join": "1M"
+        },
+        "used_columns": [
+         "curso_id",
+         "status"
+        ],
+        "attached_condition": "(`app`.`inscricoes`.`status` = 'pendente')"
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}

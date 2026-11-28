@@ -1,0 +1,59 @@
+{
+ "sql": "SELECT curso_id, COUNT(*) OVER (PARTITION BY curso_id) FROM inscricoes WHERE candidato_id < 100",
+ "plan": {
+  "query_block": {
+   "select_id": 1,
+   "cost_info": {
+    "query_cost": "358.41"
+   },
+   "windowing": {
+    "windows": [
+     {
+      "name": "<unnamed window>",
+      "using_filesort": true,
+      "filesort_key": [
+       "`curso_id`"
+      ],
+      "frame_buffer": {
+       "using_temporary_table": true,
+       "optimized_frame_evaluation": true
+      },
+      "functions": [
+       "count"
+      ]
+     }
+    ],
+    "cost_info": {
+     "sort_cost": "247.00"
+    },
+    "table": {
+     "table_name": "inscricoes",
+     "access_type": "range",
+     "possible_keys": [
+      "fk_insc_candidato"
+     ],
+     "key": "fk_insc_candidato",
+     "used_key_parts": [
+      "candidato_id"
+     ],
+     "key_length": "4",
+     "rows_examined_per_scan": 247,
+     "rows_produced_per_join": 247,
+     "filtered": "100.00",
+     "index_condition": "(`app`.`inscricoes`.`candidato_id` < 100)",
+     "cost_info": {
+      "read_cost": "86.71",
+      "eval_cost": "24.70",
+      "prefix_cost": "111.41",
+      "data_read_per_join": "25K"
+     },
+     "used_columns": [
+      "id",
+      "candidato_id",
+      "curso_id"
+     ]
+    }
+   }
+  }
+ }
+}
