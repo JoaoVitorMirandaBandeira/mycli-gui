@@ -443,6 +443,151 @@ def cancel_query(alias, qid):
             c.close()
 
 
+# ----------------------------------------------------- plano de execução ---
+EXPLAIN_PREFIX = re.compile(r'(?:explain|describe|desc)(?:\s+(?:extended|partitions|format\s*=\s*\w+))*\s+', re.I)
+EXPLAINABLE = re.compile(r'[(\s]*(select|with|table|values|insert|replace|update|delete)\b', re.I)
+
+
+def explain_target(sql):
+    """A instrução que vai para o EXPLAIN: uma só, sem um EXPLAIN que o usuário já tenha escrito."""
+    statements = split_sql(sql)
+    if len(statements) != 1:
+        raise ApiError('Selecione uma única consulta para ver o plano de execução.'
+                       if statements else 'Nenhuma consulta para explicar.')
+    st = statements[0]
+    m = EXPLAIN_PREFIX.match(st)
+    if m and m.end() < len(st):
+        st = st[m.end():]
+    if re.match(r'\s*analyze\b', st, re.I) or not EXPLAINABLE.match(sql_command(st)):
+        raise ApiError('O plano de execução está disponível para SELECT, WITH, TABLE, '
+                       'INSERT, REPLACE, UPDATE e DELETE.')
+    return st
+
+
+def server_flavor(version):
+    """'8.4.3' -> ('MySQL', (8, 4, 3)); '10.11.6-MariaDB-1' -> ('MariaDB', (10, 11, 6))."""
+    nums = tuple(int(x) for x in re.findall(r'\d+', version.split('-')[0])[:3])
+    return ('MariaDB' if 'mariadb' in version.lower() else 'MySQL'), nums
+
+
+def explain_query(alias, db, sql, qid=None):
+    """EXPLAIN FORMAT=JSON (não executa a consulta) + consulta reescrita + EXPLAIN tradicional.
+    Roda na sessão do editor para enxergar o mesmo banco, variáveis e tabelas temporárias."""
+    st = explain_target(sql)
+    t0 = time.time()
+    with pool.lock(alias):
+        try:
+            for attempt in (0, 1):
+                try:
+                    c = pool.get(alias)
+                    if db and c.db != db:
+                        c.select_db(db)
+                    running[alias] = (qid, c.thread_id())
+                    flavor, ver = server_flavor(c.get_server_info())
+                    cur = c.cursor()
+
+                    def q(s):
+                        cur.execute(s)
+                        return cur.description, cur.fetchall()
+
+                    old = None
+                    if flavor == 'MySQL' and ver >= (8, 3):
+                        # 8.3+ pode devolver o JSON v2 (padrão no 9.5); o diagrama lê o v1.
+                        try:
+                            old = q('SELECT @@SESSION.explain_json_format_version')[1][0][0]
+                            if str(old) != '1':
+                                q('SET @@SESSION.explain_json_format_version = 1')
+                            else:
+                                old = None
+                        except pymysql.MySQLError:
+                            old = None
+                    try:
+                        plan = q('EXPLAIN FORMAT=JSON ' + st)[1][0][0]
+                        notes = q('SHOW WARNINGS')[1]
+                    finally:
+                        if old is not None:
+                            q(f'SET @@SESSION.explain_json_format_version = {int(old)}')
+                    # explain_format (8.0.32+) pode mudar o formato padrão do EXPLAIN simples
+                    desc, rows = q(('EXPLAIN FORMAT=TRADITIONAL ' if flavor == 'MySQL' else 'EXPLAIN ') + st)
+                    cur.close()
+                    break
+                except pymysql.MySQLError as e:
+                    if _gone(e) and attempt == 0:
+                        pool.drop(alias)
+                        continue  # EXPLAIN não altera dados: seguro repetir numa conexão nova
+                    raise
+            if qid and qid in cancelled:
+                raise ApiError('Consulta cancelada.')
+            if isinstance(plan, (bytes, bytearray)):
+                plan = plan.decode('utf-8', 'replace')
+            rewritten = next((jv(n[2]) for n in notes if n[1] == 1003), None)
+            return dict(sql=st, plan=plan, rewritten=rewritten,
+                        notes=[[jv(n[0]), jv(n[1]), jv(n[2])] for n in notes if n[1] != 1003],
+                        tabular=dict(columns=[d[0] for d in desc], rows=[[jv(v) for v in r] for r in rows]),
+                        server=dict(flavor=flavor, version='.'.join(map(str, ver))),
+                        ms=int((time.time() - t0) * 1000))
+        except pymysql.MySQLError as e:
+            if e.args and e.args[0] == 1317:
+                raise ApiError('Consulta cancelada.')
+            if _gone(e):
+                pool.drop(alias)
+            raise ApiError(emsg(e))
+        finally:
+            running.pop(alias, None)
+            cancelled.pop(qid, None)
+
+
+MEASURABLE = re.compile(r'[(\s]*(select|with|table)\b', re.I)
+ANALYZE_ROOT = re.compile(r'actual time=[\d.e+-]+\.\.([\d.e+-]+) rows=([\d.e+-]+) loops=(\d+)')
+
+
+def measure_query(alias, db, sql, qid=None):
+    """Tempo real de uma consulta de leitura: EXPLAIN ANALYZE (MySQL 8.0.18+) ou ANALYZE FORMAT=JSON
+    (MariaDB). EXECUTA a consulta, mas não devolve as linhas; só aceita SELECT/WITH/TABLE."""
+    st = explain_target(sql)
+    if not MEASURABLE.match(sql_command(st)):
+        raise ApiError('Medir só está disponível para consultas de leitura (SELECT).')
+    with pool.lock(alias):
+        try:
+            c = pool.get(alias)
+            if db and c.db != db:
+                c.select_db(db)
+            running[alias] = (qid, c.thread_id())
+            flavor, ver = server_flavor(c.get_server_info())
+            if flavor == 'MySQL' and ver < (8, 0, 18) or flavor == 'MariaDB' and ver < (10, 1):
+                raise ApiError('Medir exige MySQL 8.0.18+ (EXPLAIN ANALYZE) ou MariaDB 10.1+ (ANALYZE).')
+            cur = c.cursor()
+            t0 = time.time()
+            cur.execute(('EXPLAIN ANALYZE ' if flavor == 'MySQL' else 'ANALYZE FORMAT=JSON ') + st)
+            out = cur.fetchall()[0][0]
+            wall = (time.time() - t0) * 1000
+            cur.close()
+            if isinstance(out, (bytes, bytearray)):
+                out = out.decode('utf-8', 'replace')
+            ms = rows = None
+            if flavor == 'MySQL':
+                m = ANALYZE_ROOT.search(out)  # a primeira linha é a raiz do plano
+                if m:
+                    ms, rows = float(m[1]) * int(m[3]), float(m[2]) * int(m[3])
+            else:
+                try:
+                    ms = json.loads(out)['query_block'].get('r_total_time_ms')
+                except (ValueError, KeyError, TypeError):
+                    pass
+            if qid and qid in cancelled:
+                raise ApiError('Medição cancelada.')
+            return dict(ms=ms if ms is not None else wall, rows=rows, server_ms=ms is not None)
+        except pymysql.MySQLError as e:
+            if e.args and e.args[0] == 1317:
+                raise ApiError('Medição cancelada.')
+            if _gone(e):
+                pool.drop(alias)
+            raise ApiError(emsg(e))
+        finally:
+            running.pop(alias, None)
+            cancelled.pop(qid, None)
+
+
 def simple(alias, db, sql, params=None):
     with pool.lock(alias, 'meta'):
         for attempt in (0, 1):
@@ -761,6 +906,10 @@ def api(path, d):
             # A leitura usa outra sessão para ignorar tabelas temporárias do editor.
             return run_query(alias, db, sql, limit, qid, browse=table)
         return run_query(alias, db, sql, limit, qid)
+    if path == '/api/explain':
+        return explain_query(alias, d.get('db'), d.get('sql', ''), d.get('qid'))
+    if path == '/api/measure':
+        return measure_query(alias, d.get('db'), d.get('sql', ''), d.get('qid'))
     if path in ('/api/table/save', '/api/table/preview'):
         return table_updates(alias, d.get('db'), d.get('table'), d.get('changes'),
                              preview=path == '/api/table/preview', expected_columns=d.get('columns'))

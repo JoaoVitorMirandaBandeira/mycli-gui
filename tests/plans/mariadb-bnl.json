@@ -1,0 +1,22 @@
+{
+ "sql": "SELECT i.id, cu.nome FROM inscricoes i JOIN cursos cu ON cu.id = i.curso_id WHERE i.status = 'ativa' ORDER BY i.criado_em DESC",
+ "note": "Escrito à mão no formato documentado do MariaDB 11 (EXPLAIN FORMAT=JSON): rows/cost/loops em vez de cost_info, block-nl-join e filesort.",
+ "plan": {
+  "query_block": {
+   "select_id": 1,
+   "cost": 41.25,
+   "filesort": {
+    "sort_key": "i.criado_em desc",
+    "temporary_table": {
+     "nested_loop": [
+      {"table": {"table_name": "i", "access_type": "ALL", "possible_keys": ["fk_insc_curso"], "loops": 1, "rows": 150000, "cost": 24.5, "filtered": 40, "attached_condition": "i.`status` = 'ativa'"}},
+      {"block-nl-join": {
+        "table": {"table_name": "cu", "access_type": "ALL", "loops": 60000, "rows": 300, "cost": 16.75, "filtered": 100},
+        "buffer_type": "flat", "buffer_size": "256Kb", "join_type": "BNL",
+        "attached_condition": "cu.`id` = i.curso_id"}}
+     ]
+    }
+   }
+  }
+ }
+}

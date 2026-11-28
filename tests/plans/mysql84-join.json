@@ -1,0 +1,108 @@
+{
+ "sql": "SELECT c.nome, cu.nome AS curso, COUNT(*) AS total FROM inscricoes i JOIN candidatos c ON c.id = i.candidato_id JOIN cursos cu ON cu.id = i.curso_id WHERE i.status = 'ativa' AND c.cidade LIKE 'São%' GROUP BY c.id, cu.id ORDER BY total DESC LIMIT 50",
+ "plan": {
+  "query_block": {
+   "select_id": 1,
+   "cost_info": {
+    "query_cost": "12441.03"
+   },
+   "ordering_operation": {
+    "using_filesort": true,
+    "grouping_operation": {
+     "using_temporary_table": true,
+     "using_filesort": false,
+     "nested_loop": [
+      {
+       "table": {
+        "table_name": "c",
+        "access_type": "ALL",
+        "possible_keys": [
+         "PRIMARY"
+        ],
+        "rows_examined_per_scan": 59897,
+        "rows_produced_per_join": 6654,
+        "filtered": "11.11",
+        "cost_info": {
+         "read_cost": "5396.49",
+         "eval_cost": "665.46",
+         "prefix_cost": "6061.95",
+         "data_read_per_join": "6M"
+        },
+        "used_columns": [
+         "id",
+         "nome",
+         "cidade"
+        ],
+        "attached_condition": "(`app`.`c`.`cidade` like 'São%')"
+       }
+      },
+      {
+       "table": {
+        "table_name": "i",
+        "access_type": "ref",
+        "possible_keys": [
+         "fk_insc_candidato",
+         "fk_insc_curso"
+        ],
+        "key": "fk_insc_candidato",
+        "used_key_parts": [
+         "candidato_id"
+        ],
+        "key_length": "4",
+        "ref": [
+         "app.c.id"
+        ],
+        "rows_examined_per_scan": 2,
+        "rows_produced_per_join": 1656,
+        "filtered": "10.00",
+        "cost_info": {
+         "read_cost": "4142.26",
+         "eval_cost": "165.69",
+         "prefix_cost": "11861.11",
+         "data_read_per_join": "168K"
+        },
+        "used_columns": [
+         "id",
+         "candidato_id",
+         "curso_id",
+         "status"
+        ],
+        "attached_condition": "(`app`.`i`.`status` = 'ativa')"
+       }
+      },
+      {
+       "table": {
+        "table_name": "cu",
+        "access_type": "eq_ref",
+        "possible_keys": [
+         "PRIMARY"
+        ],
+        "key": "PRIMARY",
+        "used_key_parts": [
+         "id"
+        ],
+        "key_length": "4",
+        "ref": [
+         "app.i.curso_id"
+        ],
+        "rows_examined_per_scan": 1,
+        "rows_produced_per_join": 1656,
+        "filtered": "100.00",
+        "cost_info": {
+         "read_cost": "414.23",
+         "eval_cost": "165.69",
+         "prefix_cost": "12441.03",
+         "data_read_per_join": "543K"
+        },
+        "used_columns": [
+         "id",
+         "nome"
+        ]
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}
